@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Account } from "../types";
+import type { Account, AccountBalance } from "../types";
 
 async function fetchAccounts(): Promise<{ accounts: Account[] }> {
   const res = await fetch("/api/finance/accounts");
@@ -70,5 +70,23 @@ export function useDeleteAccount() {
     mutationFn: deleteAccount,
     onSettled: () =>
       qc.invalidateQueries({ queryKey: ["finance", "accounts"] }),
+  });
+}
+
+async function fetchAccountBalances(
+  month: string,
+): Promise<{ balances: AccountBalance[]; month: string }> {
+  const res = await fetch(`/api/finance/accounts/balance?month=${month}`);
+  if (!res.ok)
+    throw new Error(
+      (await res.json()).error ?? "Failed to fetch account balances",
+    );
+  return res.json();
+}
+
+export function useAccountBalances(month: string) {
+  return useQuery({
+    queryKey: ["finance", "accounts", "balance", month],
+    queryFn: () => fetchAccountBalances(month),
   });
 }

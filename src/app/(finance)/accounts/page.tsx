@@ -5,11 +5,15 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
   ColorInput,
+  Divider,
   Group,
   Modal,
   Paper,
+  Progress,
   Select,
+  SimpleGrid,
   Skeleton,
   Stack,
   Table,
@@ -29,8 +33,9 @@ import {
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  useAccountBalances,
   useAccounts,
   useCreateAccount,
   useDeleteAccount,
@@ -52,6 +57,27 @@ const ACCOUNT_TYPE_OPTIONS = [
   { value: "credit", label: "Credit" },
 ];
 
+function getMonthOptions() {
+  const options = [];
+  const now = new Date();
+  for (let i = -11; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+    });
+    options.push({ value, label });
+  }
+  return options;
+}
+
+function formatAmount(n: number, currency: string) {
+  return `${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currency}`;
+}
+
+const MONTH_OPTIONS = getMonthOptions();
+
 const typeColor: Record<AccountType, string> = {
   bank: "blue",
   cash: "green",
@@ -65,6 +91,14 @@ export default function AccountsPage() {
   const createAcct = useCreateAccount();
   const updateAcct = useUpdateAccount();
   const deleteAcct = useDeleteAccount();
+
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const { data: balanceData, isLoading: balanceLoading } =
+    useAccountBalances(month);
+  const balances = useMemo(() => balanceData?.balances ?? [], [balanceData]);
 
   const [modalOpen, { open, close }] = useDisclosure(false);
   const [editTarget, setEditTarget] = useState<Account | null>(null);
@@ -166,12 +200,124 @@ export default function AccountsPage() {
         </form>
       </Modal>
 
-      <Group justify="space-between" mb="lg">
+      <Group justify="space-between" mb="md">
         <Title order={2}>Accounts</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={open}>
           Add Account
         </Button>
       </Group>
+
+      {/* ── Balance Section ── */}
+      <Stack gap="md" mb="xl">
+        <Group justify="space-between">
+          <Text fw={600} size="lg">
+            Balance Overview
+          </Text>
+          <Select
+            data={MONTH_OPTIONS}
+            value={month}
+            onChange={(v) => v && setMonth(v)}
+            w={180}
+            size="sm"
+            aria-label="Select month"
+          />
+        </Group>
+
+        {balanceLoading ? (
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+            {[1, 2, 3].map((k) => (
+              <Skeleton key={k} height={140} radius="md" />
+            ))}
+          </SimpleGrid>
+        ) : balances.length === 0 ? (
+          <Text c="dimmed" size="sm">
+            No balance data — add accounts and transactions to see stats.
+          </Text>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+            {balances.map((b) => {
+              const pct =
+                b.monthBudgeted > 0
+                  ? Math.min(100, (b.monthSpent / b.monthBudgeted) * 100)
+                  : 0;
+              const progressColor =
+                pct >= 100 ? "red" : pct >= 80 ? "orange" : "teal";
+              const netPositive = b.netBalance >= 0;
+              return (
+                <Card key={b.account} withBorder radius="md" p="md">
+                  <Group gap={6} mb="xs">
+                    <div
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background: b.color || "#868e96",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Text fw={600} size="sm" truncate>
+                      {b.account}
+                    </Text>
+                  </Group>
+
+                  <Text
+                    size="xl"
+                    fw={700}
+                    c={netPositive ? "teal" : "red"}
+                    mb={4}
+                  >
+                    {netPositive ? "+" : ""}
+                    {formatAmount(b.netBalance, b.currency)}
+                  </Text>
+                  <Text size="xs" c="dimmed" mb="sm">
+                    All-time net balance
+                  </Text>
+
+                  <Divider mb="sm" />
+
+                  <Group justify="space-between" mb={4}>
+                    <Text size="xs" c="dimmed">
+                      Spent this month
+                    </Text>
+                    <Text size="xs" fw={500}>
+                      {formatAmount(b.monthSpent, b.currency)}
+                    </Text>
+                  </Group>
+                  <Group justify="space-between" mb={4}>
+                    <Text size="xs" c="dimmed">
+                      Budgeted
+                    </Text>
+                    <Text size="xs" fw={500}>
+                      {b.monthBudgeted > 0
+                        ? formatAmount(b.monthBudgeted, b.currency)
+                        : "—"}
+                    </Text>
+                  </Group>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="xs" c="dimmed">
+                      Remaining
+                    </Text>
+                    <Text
+                      size="xs"
+                      fw={600}
+                      c={b.monthRemaining >= 0 ? "teal" : "red"}
+                    >
+                      {b.monthBudgeted > 0
+                        ? formatAmount(b.monthRemaining, b.currency)
+                        : "—"}
+                    </Text>
+                  </Group>
+                  {b.monthBudgeted > 0 && (
+                    <Progress value={pct} color={progressColor} size="xs" />
+                  )}
+                </Card>
+              );
+            })}
+          </SimpleGrid>
+        )}
+      </Stack>
+
+      <Divider mb="lg" label="Manage Accounts" labelPosition="left" />
 
       {error ? (
         <Alert icon={<IconAlertCircle />} color="orange">

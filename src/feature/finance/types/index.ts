@@ -41,6 +41,19 @@ export interface Account {
   createdAt: string;
 }
 
+export interface AccountBalance {
+  account: string;
+  color: string;
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+  // month-scoped
+  monthBudgeted: number;
+  monthSpent: number;
+  monthRemaining: number;
+  currency: string;
+}
+
 export interface SummaryMonth {
   month: string;
   income: number;

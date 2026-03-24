@@ -50,7 +50,7 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
           account: "",
           category: "",
           amount: 0,
-          currency: "USD",
+          currency: "IDR",
           type: "expense",
           description: "",
           tags: "",
@@ -142,8 +142,9 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
             label="Amount"
             required
             min={0}
-            decimalScale={2}
             aria-label="Amount"
+            decimalScale={0}
+            thousandSeparator=","
             {...form.getInputProps("amount")}
           />
 
