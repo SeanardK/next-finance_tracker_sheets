@@ -1,0 +1,106 @@
+export type TransactionType = "income" | "expense" | "transfer";
+
+export interface Transaction {
+  rowIndex: number;
+  date: string;
+  category: string;
+  amount: number;
+  currency: string;
+  type: TransactionType;
+  description: string;
+  tags: string;
+  externalId: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  parentId: string;
+  type: TransactionType | "all";
+  color: string;
+  createdAt: string;
+}
+
+export interface SummaryMonth {
+  month: string;
+  income: number;
+  expense: number;
+  net: number;
+}
+
+export interface CategorySummary {
+  category: string;
+  total: number;
+  type: TransactionType;
+}
+
+export interface Summary {
+  monthly: SummaryMonth[];
+  byCategory: CategorySummary[];
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+}
+
+export interface ProvisionResult {
+  spreadsheetId: string;
+  alreadyExisted: boolean;
+}
+
+export type TransactionFormValues = Omit<
+  Transaction,
+  "rowIndex" | "externalId" | "createdAt" | "updatedAt" | "deleted"
+>;
+
+export const TX_COLS = {
+  date: 0,
+  account: 1,
+  category: 2,
+  amount: 3,
+  currency: 4,
+  type: 5,
+  description: 6,
+  tags: 7,
+  externalId: 8,
+  createdAt: 9,
+  updatedAt: 10,
+  deleted: 11,
+} as const;
+
+export const CAT_COLS = {
+  id: 0,
+  name: 1,
+  parentId: 2,
+  type: 3,
+  color: 4,
+  createdAt: 5,
+} as const;
+
+export const TX_HEADERS = [
+  "Date",
+  "Account",
+  "Category",
+  "Amount",
+  "Currency",
+  "Type",
+  "Description",
+  "Tags",
+  "ExternalId",
+  "CreatedAt",
+  "UpdatedAt",
+  "Deleted",
+];
+
+export const CAT_HEADERS = [
+  "id",
+  "name",
+  "parentId",
+  "type",
+  "color",
+  "createdAt",
+];
+
+export const META_HEADERS = ["key", "value"];
