@@ -1,7 +1,9 @@
-import type { Account, Category, Transaction } from "../types";
+import type { Account, Budget, Category, Transaction } from "../types";
 import {
   ACCT_COLS,
   ACCT_HEADERS,
+  BUDGET_COLS,
+  BUDGET_HEADERS,
   CAT_COLS,
   CAT_HEADERS,
   META_HEADERS,
@@ -26,7 +28,13 @@ export async function initSpreadsheet(
     (meta.data.sheets ?? []).map((s) => s.properties?.title),
   );
 
-  const required = ["transactions", "categories", "accounts", "meta"];
+  const required = [
+    "transactions",
+    "categories",
+    "accounts",
+    "budgets",
+    "meta",
+  ];
   const missing = required.filter((s) => !existingSheets.has(s));
 
   if (missing.length > 0) {
@@ -49,6 +57,8 @@ export async function initSpreadsheet(
     headerData.push({ range: "categories!A1", values: [CAT_HEADERS] });
   if (missing.includes("accounts"))
     headerData.push({ range: "accounts!A1", values: [ACCT_HEADERS] });
+  if (missing.includes("budgets"))
+    headerData.push({ range: "budgets!A1", values: [BUDGET_HEADERS] });
   if (missing.includes("meta"))
     headerData.push({ range: "meta!A1", values: [META_HEADERS] });
 
@@ -354,5 +364,97 @@ function rowToAccount(row: string[], rowIndex: number): Account {
     type: (row[ACCT_COLS.type] as Account["type"]) ?? "bank",
     color: row[ACCT_COLS.color] ?? "#868e96",
     createdAt: row[ACCT_COLS.createdAt] ?? "",
+  };
+}
+
+//  Budgets
+
+export async function readBudgets(
+  spreadsheetId: string,
+  serviceAccountKey?: string,
+): Promise<Budget[]> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const res = await withBackoff(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "budgets!A2:H",
+    }),
+  );
+  return (res.data.values ?? []).map((row, idx) => rowToBudget(row, idx + 2));
+}
+
+export async function appendBudget(
+  spreadsheetId: string,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "budgets!A:H",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function updateBudgetRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `budgets!A${rowIndex}:H${rowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function deleteBudgetRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const sheetId = await getSheetId(spreadsheetId, "budgets", serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex: rowIndex - 1,
+                endIndex: rowIndex,
+              },
+            },
+          },
+        ],
+      },
+    }),
+  );
+}
+
+function rowToBudget(row: string[], rowIndex: number): Budget {
+  return {
+    rowIndex,
+    id: row[BUDGET_COLS.id] ?? "",
+    month: row[BUDGET_COLS.month] ?? "",
+    category: row[BUDGET_COLS.category] ?? "",
+    type: (row[BUDGET_COLS.type] as Budget["type"]) ?? "expense",
+    amount: Number.parseFloat(row[BUDGET_COLS.amount]) || 0,
+    currency: row[BUDGET_COLS.currency] ?? "IDR",
+    createdAt: row[BUDGET_COLS.createdAt] ?? "",
+    updatedAt: row[BUDGET_COLS.updatedAt] ?? "",
   };
 }

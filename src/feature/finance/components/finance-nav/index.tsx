@@ -7,6 +7,7 @@ import {
   IconChartBar,
   IconList,
   IconSettings,
+  IconWallet,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/transactions", label: "Transactions", icon: IconList },
   { href: "/categories", label: "Categories", icon: IconCategory },
   { href: "/accounts", label: "Accounts", icon: IconBuildingBank },
+  { href: "/budgeting", label: "Budgeting", icon: IconWallet },
   { href: "/settings", label: "Settings", icon: IconSettings },
 ];
 

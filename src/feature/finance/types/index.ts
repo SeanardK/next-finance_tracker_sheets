@@ -130,4 +130,44 @@ export const ACCT_COLS = {
 
 export const ACCT_HEADERS = ["id", "name", "type", "color", "createdAt"];
 
+export interface Budget {
+  rowIndex: number;
+  id: string;
+  month: string; // YYYY-MM
+  category: string;
+  type: "income" | "expense";
+  amount: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BudgetWithActual extends Budget {
+  actual: number;
+  remaining: number;
+  percentUsed: number;
+}
+
+export const BUDGET_COLS = {
+  id: 0,
+  month: 1,
+  category: 2,
+  type: 3,
+  amount: 4,
+  currency: 5,
+  createdAt: 6,
+  updatedAt: 7,
+} as const;
+
+export const BUDGET_HEADERS = [
+  "id",
+  "month",
+  "category",
+  "type",
+  "amount",
+  "currency",
+  "createdAt",
+  "updatedAt",
+];
+
 export const META_HEADERS = ["key", "value"];
