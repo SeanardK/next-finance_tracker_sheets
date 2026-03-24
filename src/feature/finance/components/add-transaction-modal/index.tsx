@@ -13,6 +13,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { useAccounts } from "../../hooks/use-accounts";
 import { useCategories } from "../../hooks/use-categories";
 import {
   useCreateTransaction,
@@ -28,6 +29,7 @@ interface Props {
 
 export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
   const { data: categoriesData } = useCategories();
+  const { data: accountsData } = useAccounts();
   const createTx = useCreateTransaction();
   const updateTx = useUpdateTransaction();
 
@@ -35,7 +37,7 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
     initialValues: editingTx
       ? {
           date: editingTx.date,
-
+          account: editingTx.account,
           category: editingTx.category,
           amount: editingTx.amount,
           currency: editingTx.currency,
@@ -45,6 +47,7 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
         }
       : {
           date: new Date().toISOString().slice(0, 10),
+          account: "",
           category: "",
           amount: 0,
           currency: "USD",
@@ -62,6 +65,11 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
   const categoryOptions = (categoriesData?.categories ?? []).map((c) => ({
     value: c.name,
     label: c.parentId ? `  ↳ ${c.name}` : c.name,
+  }));
+
+  const accountOptions = (accountsData?.accounts ?? []).map((a) => ({
+    value: a.name,
+    label: a.name,
   }));
 
   async function handleSubmit(values: TransactionFormValues) {
@@ -106,6 +114,16 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
               form.setFieldValue("date", d ? d.toISOString().slice(0, 10) : "")
             }
             error={form.errors.date}
+          />
+
+          <Select
+            label="Account"
+            data={accountOptions}
+            searchable
+            clearable
+            nothingFoundMessage="No accounts — add one in Accounts"
+            aria-label="Account"
+            {...form.getInputProps("account")}
           />
 
           <Select

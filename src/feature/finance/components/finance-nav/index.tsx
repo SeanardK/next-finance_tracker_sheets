@@ -2,10 +2,10 @@
 
 import { NavLink, Stack } from "@mantine/core";
 import {
+  IconBuildingBank,
   IconCategory,
   IconChartBar,
   IconList,
-  // IconBuildingBank,
   IconSettings,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: IconChartBar },
   { href: "/transactions", label: "Transactions", icon: IconList },
   { href: "/categories", label: "Categories", icon: IconCategory },
-  // { href: "/accounts", label: "Accounts", icon: IconBuildingBank },
+  { href: "/accounts", label: "Accounts", icon: IconBuildingBank },
   { href: "/settings", label: "Settings", icon: IconSettings },
 ];
 

@@ -23,6 +23,9 @@ export function TransactionTable({ transactions, onEdit, onDelete }: Props) {
         <Text size="sm">{tx.date}</Text>
       </Table.Td>
       <Table.Td>
+        <Text size="sm">{tx.account || "—"}</Text>
+      </Table.Td>
+      <Table.Td>
         <Badge color={typeColor[tx.type] ?? "gray"} size="sm">
           {tx.type}
         </Badge>
@@ -88,6 +91,7 @@ export function TransactionTable({ transactions, onEdit, onDelete }: Props) {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Date</Table.Th>
+            <Table.Th>Account</Table.Th>
             <Table.Th>Type</Table.Th>
             <Table.Th>Category</Table.Th>
             <Table.Th>Amount</Table.Th>

@@ -1,5 +1,7 @@
-import type { Category, Transaction } from "../types";
+import type { Account, Category, Transaction } from "../types";
 import {
+  ACCT_COLS,
+  ACCT_HEADERS,
   CAT_COLS,
   CAT_HEADERS,
   META_HEADERS,
@@ -24,7 +26,7 @@ export async function initSpreadsheet(
     (meta.data.sheets ?? []).map((s) => s.properties?.title),
   );
 
-  const required = ["transactions", "categories", "meta"];
+  const required = ["transactions", "categories", "accounts", "meta"];
   const missing = required.filter((s) => !existingSheets.has(s));
 
   if (missing.length > 0) {
@@ -45,6 +47,8 @@ export async function initSpreadsheet(
     headerData.push({ range: "transactions!A1", values: [TX_HEADERS] });
   if (missing.includes("categories"))
     headerData.push({ range: "categories!A1", values: [CAT_HEADERS] });
+  if (missing.includes("accounts"))
+    headerData.push({ range: "accounts!A1", values: [ACCT_HEADERS] });
   if (missing.includes("meta"))
     headerData.push({ range: "meta!A1", values: [META_HEADERS] });
 
@@ -220,6 +224,7 @@ function rowToTransaction(row: string[], rowIndex: number): Transaction {
   return {
     rowIndex,
     date: row[TX_COLS.date] ?? "",
+    account: row[TX_COLS.account] ?? "",
     category: row[TX_COLS.category] ?? "",
     amount: Number.parseFloat(row[TX_COLS.amount]) || 0,
     currency: row[TX_COLS.currency] ?? "IDR",
@@ -257,4 +262,97 @@ async function getSheetId(
     (s) => s.properties?.title === sheetTitle,
   );
   return sheet?.properties?.sheetId ?? 0;
+}
+
+//  Accounts
+
+export async function readAccounts(
+  spreadsheetId: string,
+  serviceAccountKey?: string,
+): Promise<Account[]> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const res = await withBackoff(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "accounts!A2:E",
+    }),
+  );
+  return (res.data.values ?? []).map((row, idx) => rowToAccount(row, idx + 2));
+}
+
+export async function appendAccount(
+  spreadsheetId: string,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "accounts!A:E",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function updateAccountRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `accounts!A${rowIndex}:E${rowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function deleteAccountRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const sheetId = await getSheetId(
+    spreadsheetId,
+    "accounts",
+    serviceAccountKey,
+  );
+  await withBackoff(() =>
+    sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex: rowIndex - 1,
+                endIndex: rowIndex,
+              },
+            },
+          },
+        ],
+      },
+    }),
+  );
+}
+
+function rowToAccount(row: string[], rowIndex: number): Account {
+  return {
+    rowIndex,
+    id: row[ACCT_COLS.id] ?? "",
+    name: row[ACCT_COLS.name] ?? "",
+    type: (row[ACCT_COLS.type] as Account["type"]) ?? "bank",
+    color: row[ACCT_COLS.color] ?? "#868e96",
+    createdAt: row[ACCT_COLS.createdAt] ?? "",
+  };
 }

@@ -3,6 +3,7 @@ export type TransactionType = "income" | "expense" | "transfer";
 export interface Transaction {
   rowIndex: number;
   date: string;
+  account: string;
   category: string;
   amount: number;
   currency: string;
@@ -20,6 +21,22 @@ export interface Category {
   name: string;
   parentId: string;
   type: TransactionType | "all";
+  color: string;
+  createdAt: string;
+}
+
+export type AccountType =
+  | "bank"
+  | "cash"
+  | "e-wallet"
+  | "investment"
+  | "credit";
+
+export interface Account {
+  rowIndex: number;
+  id: string;
+  name: string;
+  type: AccountType;
   color: string;
   createdAt: string;
 }
@@ -102,5 +119,15 @@ export const CAT_HEADERS = [
   "color",
   "createdAt",
 ];
+
+export const ACCT_COLS = {
+  id: 0,
+  name: 1,
+  type: 2,
+  color: 3,
+  createdAt: 4,
+} as const;
+
+export const ACCT_HEADERS = ["id", "name", "type", "color", "createdAt"];
 
 export const META_HEADERS = ["key", "value"];
