@@ -45,7 +45,7 @@ interface BudgetForm {
   type: "income" | "expense";
   amount: number;
   currency: string;
-  account: string; // empty = applies to all accounts
+  account: string;
 }
 
 function getMonthOptions() {

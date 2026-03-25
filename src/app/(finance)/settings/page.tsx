@@ -36,11 +36,14 @@ export default function SettingsPage() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [serviceAccountKey, setServiceAccountKey] = useState("");
+  const [finnhubKey, setFinnhubKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingFh, setSavingFh] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [configured, setConfigured] = useState<{
     spreadsheetId: string | null;
     hasServiceAccountKey: boolean;
+    hasFinnhubKey: boolean;
   } | null>(null);
 
   const [importing, setImporting] = useState(false);
@@ -83,6 +86,7 @@ export default function SettingsPage() {
         hasServiceAccountKey: serviceAccountKey.trim()
           ? true
           : (prev?.hasServiceAccountKey ?? false),
+        hasFinnhubKey: prev?.hasFinnhubKey ?? false,
       }));
       setServiceAccountKey("");
       notifications.show({
@@ -94,6 +98,37 @@ export default function SettingsPage() {
       notifications.show({ color: "red", message: (err as Error).message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveFinnhub() {
+    if (!finnhubKey.trim()) {
+      notifications.show({ color: "red", message: "API key is required" });
+      return;
+    }
+    setSavingFh(true);
+    try {
+      const res = await fetch("/api/finance/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spreadsheetId: configured?.spreadsheetId ?? spreadsheetId.trim(),
+          finnhubKey: finnhubKey.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setConfigured((prev) => (prev ? { ...prev, hasFinnhubKey: true } : prev));
+      setFinnhubKey("");
+      notifications.show({
+        color: "green",
+        icon: <IconCheck size={16} />,
+        message: "Finnhub key saved!",
+      });
+    } catch (err) {
+      notifications.show({ color: "red", message: (err as Error).message });
+    } finally {
+      setSavingFh(false);
     }
   }
 
@@ -328,6 +363,67 @@ export default function SettingsPage() {
               </Anchor>
             </Text>
           )}
+        </Stack>
+      </Paper>
+
+      <Divider mb="lg" />
+
+      {/* Finnhub */}
+      <Paper withBorder p="lg" radius="md" mb="lg">
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Text fw={600} size="lg">
+              Finnhub API Key
+            </Text>
+            {configured?.hasFinnhubKey ? (
+              <Badge color="green" variant="light">
+                Configured
+              </Badge>
+            ) : (
+              <Badge color="orange" variant="light">
+                Required for live prices
+              </Badge>
+            )}
+          </Group>
+
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="blue"
+            variant="light"
+          >
+            Used to fetch live stock prices in the Portfolio tracker. Get a free
+            key at{" "}
+            <Anchor
+              href="https://finnhub.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              finnhub.io
+            </Anchor>
+            . The free tier allows 60 price requests per minute.
+          </Alert>
+
+          <TextInput
+            label={
+              configured?.hasFinnhubKey
+                ? "New API key (leave blank to keep existing)"
+                : "Finnhub API key"
+            }
+            placeholder="Enter your Finnhub API key"
+            leftSection={<IconKey size={16} />}
+            value={finnhubKey}
+            onChange={(e) => setFinnhubKey(e.currentTarget.value)}
+          />
+
+          <Group>
+            <Button
+              onClick={handleSaveFinnhub}
+              loading={savingFh}
+              leftSection={<IconCheck size={16} />}
+            >
+              Save API Key
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 
