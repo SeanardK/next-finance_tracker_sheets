@@ -31,7 +31,11 @@ export function TransactionTable({ transactions, onEdit, onDelete }: Props) {
         </Badge>
       </Table.Td>
       <Table.Td>
-        <Text size="sm">{tx.category || "—"}</Text>
+        <Text size="sm">
+          {tx.type === "transfer" && tx.category
+            ? `→ ${tx.category}`
+            : tx.category || "—"}
+        </Text>
       </Table.Td>
       <Table.Td>
         <Text
@@ -42,7 +46,7 @@ export function TransactionTable({ transactions, onEdit, onDelete }: Props) {
               ? "green"
               : tx.type === "expense"
                 ? "red"
-                : undefined
+                : "blue"
           }
         >
           {tx.type === "expense" ? "-" : ""}
