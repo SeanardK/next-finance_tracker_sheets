@@ -208,6 +208,9 @@ export interface PortfolioHolding {
   createdAt: string;
   updatedAt: string;
   deleted: string;
+  currentPrice: number; // =GOOGLEFINANCE(ticker,"price")
+  previousClose: number; // =GOOGLEFINANCE(ticker,"closeyest")
+  changePercent: number; // =GOOGLEFINANCE(ticker,"changepct") * 100
 }
 
 export interface PortfolioTransaction {
@@ -228,9 +231,6 @@ export interface PortfolioTransaction {
 }
 
 export interface PortfolioHoldingWithPrice extends PortfolioHolding {
-  currentPrice: number;
-  previousClose: number;
-  changePercent: number;
   currentValue: number;
   costBasis: number;
   unrealizedPnl: number;
@@ -264,6 +264,9 @@ export const PORTFOLIO_HOLDING_COLS = {
   createdAt: 11,
   updatedAt: 12,
   deleted: 13,
+  currentPrice: 14,
+  previousClose: 15,
+  changePercent: 16,
 } as const;
 
 export const PORTFOLIO_HOLDING_HEADERS = [
@@ -281,6 +284,9 @@ export const PORTFOLIO_HOLDING_HEADERS = [
   "createdAt",
   "updatedAt",
   "deleted",
+  "currentPrice",
+  "previousClose",
+  "changePercent",
 ];
 
 export const PORTFOLIO_TX_COLS = {

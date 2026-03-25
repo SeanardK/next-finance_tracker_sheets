@@ -237,14 +237,14 @@ export default function PortfolioPage() {
             >
               Refresh
             </Button>
-            <Button
+            {/* <Button
               variant="default"
               size="sm"
               leftSection={<IconList size={16} />}
               onClick={() => setAddTxOpen(true)}
             >
               Log Transaction
-            </Button>
+            </Button> */}
             <Button
               size="sm"
               leftSection={<IconPlus size={16} />}

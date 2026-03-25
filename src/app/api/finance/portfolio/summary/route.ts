@@ -3,7 +3,6 @@ import {
   readPortfolioTransactions,
 } from "@/feature/finance/lib/sheets-helpers";
 import { getSpreadsheetId } from "../../_helpers";
-import type { MarketQuote } from "../market-price/route";
 import type {
   PortfolioHoldingWithPrice,
   PortfolioSummary,
@@ -35,46 +34,7 @@ export async function GET() {
       return Response.json(empty);
     }
 
-    // Fetch market prices via Finnhub
-    const tickers = [...new Set(holdings.map((h) => h.ticker))];
-    const validTickers = tickers.filter((t) => /^[A-Z0-9.\-^]{1,20}$/.test(t));
-    const apiKey = result.finnhubKey;
-
-    const priceMap: Map<string, MarketQuote> = new Map();
-    if (validTickers.length > 0 && apiKey) {
-      const priceResults = await Promise.allSettled(
-        validTickers.map(async (ticker) => {
-          const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${encodeURIComponent(apiKey)}`;
-          const res = await fetch(url, { next: { revalidate: 60 } });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = (await res.json()) as {
-            c: number;
-            d: number;
-            dp: number;
-            h: number;
-            l: number;
-            o: number;
-            pc: number;
-            t: number;
-          };
-          if (!json.c && json.c !== 0) throw new Error("No data");
-          return {
-            ticker,
-            price: json.c,
-            previousClose: json.pc,
-            changePercent: json.dp,
-            currency: ticker.endsWith(".JK") ? "IDR" : "USD",
-            shortName: ticker,
-            error: false,
-          } satisfies MarketQuote;
-        }),
-      );
-      for (const r of priceResults) {
-        if (r.status === "fulfilled") {
-          priceMap.set(r.value.ticker, r.value);
-        }
-      }
-    }
+    // Prices are read directly from the GOOGLEFINANCE formulas in the holdings sheet
 
     // Calculate total dividends
     const totalDividends = transactions
@@ -83,10 +43,9 @@ export async function GET() {
 
     // Build enriched holdings
     const enriched: PortfolioHoldingWithPrice[] = holdings.map((h) => {
-      const quote = priceMap.get(h.ticker);
-      const currentPrice = quote?.price ?? 0;
-      const previousClose = quote?.previousClose ?? 0;
-      const changePercent = quote?.changePercent ?? 0;
+      const currentPrice = h.currentPrice;
+      const previousClose = h.previousClose;
+      const changePercent = h.changePercent;
       const currentValue = currentPrice * h.shares;
       const costBasis = h.avgPrice * h.shares;
       const unrealizedPnl = currentValue - costBasis;
@@ -102,7 +61,7 @@ export async function GET() {
         costBasis,
         unrealizedPnl,
         unrealizedPnlPct,
-        priceError: quote?.error ?? true,
+        priceError: currentPrice === 0,
       };
     });
 

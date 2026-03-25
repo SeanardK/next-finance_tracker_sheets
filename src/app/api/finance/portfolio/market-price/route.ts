@@ -1,5 +1,6 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
+import { readPortfolioHoldings } from "@/feature/finance/lib/sheets-helpers";
+import { getSpreadsheetId } from "../../_helpers";
 
 export interface MarketQuote {
   ticker: string;
@@ -11,65 +12,12 @@ export interface MarketQuote {
   error?: boolean;
 }
 
-async function fetchFinnhubQuote(
-  symbol: string,
-  apiKey: string,
-): Promise<MarketQuote> {
-  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(apiKey)}`;
-  try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = (await res.json()) as {
-      c: number;
-      d: number;
-      dp: number;
-      h: number;
-      l: number;
-      o: number;
-      pc: number;
-      t: number;
-    };
-    if (!json.c && json.c !== 0) throw new Error("No data");
-    return {
-      ticker: symbol,
-      price: json.c,
-      previousClose: json.pc,
-      changePercent: json.dp,
-      currency: symbol.endsWith(".JK") ? "IDR" : "USD",
-      shortName: symbol,
-      error: false,
-    };
-  } catch {
-    return {
-      ticker: symbol,
-      price: 0,
-      previousClose: 0,
-      changePercent: 0,
-      currency: symbol.endsWith(".JK") ? "IDR" : "USD",
-      shortName: symbol,
-      error: true,
-    };
-  }
-}
-
 // GET /api/finance/portfolio/market-price?tickers=BBCA.JK,AAPL
+// Prices are read from the GOOGLEFINANCE formulas stored in the holdings sheet.
 export async function GET(request: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
-  const clerk = await clerkClient();
-  const user = await clerk.users.getUser(userId);
-  const meta = user.privateMetadata as Record<string, unknown>;
-  const apiKey = meta.finnhubKey as string | undefined;
-
-  if (!apiKey) {
-    return Response.json(
-      {
-        error: "Finnhub API key not configured. Go to Settings to add it.",
-      },
-      { status: 400 },
-    );
-  }
+  const result = await getSpreadsheetId();
+  if ("error" in result)
+    return Response.json({ error: result.error }, { status: result.status });
 
   const tickersParam = request.nextUrl.searchParams.get("tickers") ?? "";
   if (!tickersParam.trim())
@@ -78,23 +26,32 @@ export async function GET(request: NextRequest) {
       { status: 400 },
     );
 
-  // Sanitize tickers: only allow alphanumeric, dot, dash, caret
-  const tickers = tickersParam
-    .split(",")
-    .map((t) => t.trim().toUpperCase())
-    .filter((t) => /^[A-Z0-9.\-^]{1,20}$/.test(t))
-    .slice(0, 30);
-
-  if (tickers.length === 0)
-    return Response.json(
-      { error: "No valid tickers provided" },
-      { status: 400 },
-    );
+  const requested = new Set(
+    tickersParam
+      .split(",")
+      .map((t) => t.trim().toUpperCase())
+      .filter((t) => /^[A-Z0-9.\-^]{1,20}$/.test(t)),
+  );
 
   try {
-    const quotes = await Promise.all(
-      tickers.map((ticker) => fetchFinnhubQuote(ticker, apiKey)),
+    const holdings = await readPortfolioHoldings(
+      result.spreadsheetId,
+      result.serviceAccountKey,
     );
+
+    const quotes: MarketQuote[] = [...requested].map((ticker) => {
+      const holding = holdings.find((h) => h.ticker === ticker);
+      return {
+        ticker,
+        price: holding?.currentPrice ?? 0,
+        previousClose: holding?.previousClose ?? 0,
+        changePercent: holding?.changePercent ?? 0,
+        currency: holding?.currency ?? (ticker.endsWith(".JK") ? "IDR" : "USD"),
+        shortName: holding?.name || ticker,
+        error: !holding || holding.currentPrice === 0,
+      };
+    });
+
     return Response.json({ quotes });
   } catch (err) {
     console.error("[portfolio/market-price] error:", err);

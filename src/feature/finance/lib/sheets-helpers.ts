@@ -493,7 +493,8 @@ export async function readPortfolioHoldings(
   const res = await withBackoff(() =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "portfolio_holdings!A2:N",
+      range: "portfolio_holdings!A2:Q",
+      valueRenderOption: "UNFORMATTED_VALUE",
     }),
   );
   return (res.data.values ?? [])
@@ -510,8 +511,8 @@ export async function appendPortfolioHolding(
   await withBackoff(() =>
     sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "portfolio_holdings!A:N",
-      valueInputOption: "RAW",
+      range: "portfolio_holdings!A:Q",
+      valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
     }),
@@ -528,8 +529,8 @@ export async function updatePortfolioHoldingRow(
   await withBackoff(() =>
     sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `portfolio_holdings!A${rowIndex}:N${rowIndex}`,
-      valueInputOption: "RAW",
+      range: `portfolio_holdings!A${rowIndex}:Q${rowIndex}`,
+      valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     }),
   );
@@ -572,6 +573,11 @@ function rowToPortfolioHolding(
     createdAt: row[PORTFOLIO_HOLDING_COLS.createdAt] ?? "",
     updatedAt: row[PORTFOLIO_HOLDING_COLS.updatedAt] ?? "",
     deleted: row[PORTFOLIO_HOLDING_COLS.deleted] ?? "",
+    currentPrice: Number(row[PORTFOLIO_HOLDING_COLS.currentPrice]) || 0,
+    previousClose: Number(row[PORTFOLIO_HOLDING_COLS.previousClose]) || 0,
+    // changepct from GOOGLEFINANCE is a decimal fraction (0.0234 = 2.34%)
+    changePercent:
+      (Number(row[PORTFOLIO_HOLDING_COLS.changePercent]) || 0) * 100,
   };
 }
 

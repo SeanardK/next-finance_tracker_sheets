@@ -35,12 +35,13 @@ export async function PUT(
   if (!existing)
     return Response.json({ error: "Holding not found" }, { status: 404 });
 
+  const updatedTicker = String(body.ticker ?? existing.ticker)
+    .toUpperCase()
+    .trim();
   const now = new Date().toISOString();
   const row = [
     existing.id,
-    String(body.ticker ?? existing.ticker)
-      .toUpperCase()
-      .trim(),
+    updatedTicker,
     String(body.name ?? existing.name),
     String(body.exchange ?? existing.exchange),
     String(body.lots ?? existing.lots),
@@ -53,6 +54,9 @@ export async function PUT(
     existing.createdAt,
     now,
     "FALSE",
+    `=GOOGLEFINANCE("${updatedTicker}","price")`,
+    `=GOOGLEFINANCE("${updatedTicker}","closeyest")`,
+    `=GOOGLEFINANCE("${updatedTicker}","changepct")`,
   ];
 
   try {

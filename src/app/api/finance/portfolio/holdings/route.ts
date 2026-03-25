@@ -60,10 +60,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const tickerStr = String(ticker).toUpperCase().trim();
   const now = new Date().toISOString();
+
+  const isIDX = tickerStr.endsWith(".JK");
+  const finalTicker = isIDX ? tickerStr.slice(0, -3) : tickerStr;
+
   const row = [
     nanoid(10),
-    String(ticker).toUpperCase().trim(),
+    finalTicker,
     String(name ?? ""),
     String(exchange ?? "IDX"),
     String(lots ?? 0),
@@ -76,6 +81,9 @@ export async function POST(request: NextRequest) {
     now,
     now,
     "FALSE",
+    `=GOOGLEFINANCE("${isIDX ? "IDX:" : ""}${finalTicker}","price")`,
+    `=GOOGLEFINANCE("${isIDX ? "IDX:" : ""}${finalTicker}","closeyest")`,
+    `=GOOGLEFINANCE("${isIDX ? "IDX:" : ""}${finalTicker}","changepct")`,
   ];
 
   try {
