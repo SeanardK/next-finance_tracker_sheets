@@ -11,6 +11,7 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
+import { DatePickerInput } from "@mantine/dates";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import {
@@ -40,9 +41,14 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
+    null,
+    null,
+  ]);
 
   const transactions = useMemo(() => {
     let list = data?.transactions ?? [];
+    const [dateFrom, dateTo] = dateRange;
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -53,8 +59,16 @@ export default function TransactionsPage() {
     }
     if (filterCat) list = list.filter((tx) => tx.category === filterCat);
     if (filterType) list = list.filter((tx) => tx.type === filterType);
+    if (dateFrom) {
+      const from = dateFrom.toISOString().slice(0, 10);
+      list = list.filter((tx) => tx.date >= from);
+    }
+    if (dateTo) {
+      const to = dateTo.toISOString().slice(0, 10);
+      list = list.filter((tx) => tx.date <= to);
+    }
     return list;
-  }, [data, search, filterCat, filterType]);
+  }, [data, search, filterCat, filterType, dateRange]);
 
   function handleEdit(tx: Transaction) {
     setEditingTx(tx);
@@ -158,6 +172,16 @@ export default function TransactionsPage() {
               value={filterCat}
               onChange={setFilterCat}
               aria-label="Filter by category"
+            />
+            <DatePickerInput
+              size="md"
+              type="range"
+              placeholder="Pick date range"
+              value={dateRange}
+              onChange={setDateRange}
+              clearable
+              valueFormat="DD MMM YYYY"
+              aria-label="Filter by date range"
             />
           </Group>
         </Stack>
