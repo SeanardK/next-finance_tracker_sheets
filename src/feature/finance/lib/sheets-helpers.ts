@@ -1,4 +1,11 @@
-import type { Account, Budget, Category, Transaction } from "../types";
+import type {
+  Account,
+  Budget,
+  Category,
+  PortfolioHolding,
+  PortfolioTransaction,
+  Transaction,
+} from "../types";
 import {
   ACCT_COLS,
   ACCT_HEADERS,
@@ -7,6 +14,10 @@ import {
   CAT_COLS,
   CAT_HEADERS,
   META_HEADERS,
+  PORTFOLIO_HOLDING_COLS,
+  PORTFOLIO_HOLDING_HEADERS,
+  PORTFOLIO_TX_COLS,
+  PORTFOLIO_TX_HEADERS,
   TX_COLS,
   TX_HEADERS,
 } from "../types";
@@ -34,6 +45,8 @@ export async function initSpreadsheet(
     "accounts",
     "budgets",
     "meta",
+    "portfolio_holdings",
+    "portfolio_transactions",
   ];
   const missing = required.filter((s) => !existingSheets.has(s));
 
@@ -61,6 +74,16 @@ export async function initSpreadsheet(
     headerData.push({ range: "budgets!A1", values: [BUDGET_HEADERS] });
   if (missing.includes("meta"))
     headerData.push({ range: "meta!A1", values: [META_HEADERS] });
+  if (missing.includes("portfolio_holdings"))
+    headerData.push({
+      range: "portfolio_holdings!A1",
+      values: [PORTFOLIO_HOLDING_HEADERS],
+    });
+  if (missing.includes("portfolio_transactions"))
+    headerData.push({
+      range: "portfolio_transactions!A1",
+      values: [PORTFOLIO_TX_HEADERS],
+    });
 
   if (headerData.length > 0) {
     await withBackoff(() =>
@@ -457,5 +480,198 @@ function rowToBudget(row: string[], rowIndex: number): Budget {
     createdAt: row[BUDGET_COLS.createdAt] ?? "",
     updatedAt: row[BUDGET_COLS.updatedAt] ?? "",
     account: row[BUDGET_COLS.account] ?? "",
+  };
+}
+
+//  Portfolio Holdings
+
+export async function readPortfolioHoldings(
+  spreadsheetId: string,
+  serviceAccountKey?: string,
+): Promise<PortfolioHolding[]> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const res = await withBackoff(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "portfolio_holdings!A2:R",
+      valueRenderOption: "UNFORMATTED_VALUE",
+    }),
+  );
+  return (res.data.values ?? [])
+    .map((row, idx) => rowToPortfolioHolding(row, idx + 2))
+    .filter((h) => h.deleted !== "TRUE");
+}
+
+export async function appendPortfolioHolding(
+  spreadsheetId: string,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "portfolio_holdings!A:R",
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function updatePortfolioHoldingRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `portfolio_holdings!A${rowIndex}:R${rowIndex}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function deletePortfolioHoldingRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const now = new Date().toISOString();
+  await withBackoff(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `portfolio_holdings!M${rowIndex}:N${rowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [[now, "TRUE"]] },
+    }),
+  );
+}
+
+function rowToPortfolioHolding(
+  row: string[],
+  rowIndex: number,
+): PortfolioHolding {
+  return {
+    rowIndex,
+    id: row[PORTFOLIO_HOLDING_COLS.id] ?? "",
+    ticker: row[PORTFOLIO_HOLDING_COLS.ticker] ?? "",
+    name: row[PORTFOLIO_HOLDING_COLS.name] ?? "",
+    exchange: row[PORTFOLIO_HOLDING_COLS.exchange] ?? "",
+    lots: Number.parseFloat(row[PORTFOLIO_HOLDING_COLS.lots]) || 0,
+    shares: Number.parseFloat(row[PORTFOLIO_HOLDING_COLS.shares]) || 0,
+    avgPrice: Number.parseFloat(row[PORTFOLIO_HOLDING_COLS.avgPrice]) || 0,
+    currency: row[PORTFOLIO_HOLDING_COLS.currency] ?? "IDR",
+    sector: row[PORTFOLIO_HOLDING_COLS.sector] ?? "",
+    purchaseDate: row[PORTFOLIO_HOLDING_COLS.purchaseDate] ?? "",
+    notes: row[PORTFOLIO_HOLDING_COLS.notes] ?? "",
+    createdAt: row[PORTFOLIO_HOLDING_COLS.createdAt] ?? "",
+    updatedAt: row[PORTFOLIO_HOLDING_COLS.updatedAt] ?? "",
+    deleted: row[PORTFOLIO_HOLDING_COLS.deleted] ?? "",
+    currentPrice: Number(row[PORTFOLIO_HOLDING_COLS.currentPrice]) || 0,
+    previousClose: Number(row[PORTFOLIO_HOLDING_COLS.previousClose]) || 0,
+    changePercent:
+      (Number(row[PORTFOLIO_HOLDING_COLS.changePercent]) || 0) * 100,
+    assetType:
+      (row[
+        PORTFOLIO_HOLDING_COLS.assetType
+      ] as PortfolioHolding["assetType"]) || "stock",
+  };
+}
+
+//  Portfolio Transactions
+
+export async function readPortfolioTransactions(
+  spreadsheetId: string,
+  serviceAccountKey?: string,
+): Promise<PortfolioTransaction[]> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const res = await withBackoff(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: "portfolio_transactions!A2:M",
+    }),
+  );
+  return (res.data.values ?? [])
+    .map((row, idx) => rowToPortfolioTransaction(row, idx + 2))
+    .filter((t) => t.deleted !== "TRUE");
+}
+
+export async function appendPortfolioTransaction(
+  spreadsheetId: string,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "portfolio_transactions!A:M",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function updatePortfolioTransactionRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  row: string[],
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  await withBackoff(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `portfolio_transactions!A${rowIndex}:M${rowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    }),
+  );
+}
+
+export async function deletePortfolioTransactionRow(
+  spreadsheetId: string,
+  rowIndex: number,
+  serviceAccountKey?: string,
+): Promise<void> {
+  const sheets = getSheetsClient(serviceAccountKey);
+  const now = new Date().toISOString();
+  await withBackoff(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `portfolio_transactions!L${rowIndex}:M${rowIndex}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [[now, "TRUE"]] },
+    }),
+  );
+}
+
+function rowToPortfolioTransaction(
+  row: string[],
+  rowIndex: number,
+): PortfolioTransaction {
+  return {
+    rowIndex,
+    id: row[PORTFOLIO_TX_COLS.id] ?? "",
+    ticker: row[PORTFOLIO_TX_COLS.ticker] ?? "",
+    date: row[PORTFOLIO_TX_COLS.date] ?? "",
+    type:
+      (row[PORTFOLIO_TX_COLS.type] as PortfolioTransaction["type"]) ?? "buy",
+    lots: Number.parseFloat(row[PORTFOLIO_TX_COLS.lots]) || 0,
+    shares: Number.parseFloat(row[PORTFOLIO_TX_COLS.shares]) || 0,
+    price: Number.parseFloat(row[PORTFOLIO_TX_COLS.price]) || 0,
+    fee: Number.parseFloat(row[PORTFOLIO_TX_COLS.fee]) || 0,
+    currency: row[PORTFOLIO_TX_COLS.currency] ?? "IDR",
+    notes: row[PORTFOLIO_TX_COLS.notes] ?? "",
+    createdAt: row[PORTFOLIO_TX_COLS.createdAt] ?? "",
+    updatedAt: row[PORTFOLIO_TX_COLS.updatedAt] ?? "",
+    deleted: row[PORTFOLIO_TX_COLS.deleted] ?? "",
   };
 }

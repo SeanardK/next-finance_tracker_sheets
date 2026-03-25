@@ -47,7 +47,6 @@ export interface AccountBalance {
   totalIncome: number;
   totalExpense: number;
   netBalance: number;
-  // month-scoped
   monthBudgeted: number;
   monthSpent: number;
   monthRemaining: number;
@@ -146,12 +145,12 @@ export const ACCT_HEADERS = ["id", "name", "type", "color", "createdAt"];
 export interface Budget {
   rowIndex: number;
   id: string;
-  month: string; // YYYY-MM
+  month: string;
   category: string;
   type: "income" | "expense";
   amount: number;
   currency: string;
-  account: string; // empty = applies to all accounts
+  account: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -171,7 +170,7 @@ export const BUDGET_COLS = {
   currency: 5,
   createdAt: 6,
   updatedAt: 7,
-  account: 8, // appended at end — empty string = all accounts
+  account: 8,
 } as const;
 
 export const BUDGET_HEADERS = [
@@ -187,3 +186,166 @@ export const BUDGET_HEADERS = [
 ];
 
 export const META_HEADERS = ["key", "value"];
+
+//  Portfolio
+
+export type PortfolioAssetType =
+  | "stock"
+  | "etf"
+  | "mutual-fund"
+  | "crypto"
+  | "bond"
+  | "commodity"
+  | "real-estate"
+  | "cash"
+  | "other";
+
+export const GOOGLEFINANCE_ASSET_TYPES: PortfolioAssetType[] = [
+  "stock",
+  "etf",
+  "mutual-fund",
+];
+
+export type PortfolioTransactionType =
+  | "buy"
+  | "sell"
+  | "dividend"
+  | "split"
+  | "interest"
+  | "deposit"
+  | "withdrawal"
+  | "staking_reward"
+  | "coupon";
+
+export interface PortfolioHolding {
+  rowIndex: number;
+  id: string;
+  ticker: string;
+  name: string;
+  exchange: string;
+  lots: number;
+  shares: number;
+  avgPrice: number;
+  currency: string;
+  sector: string;
+  purchaseDate: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted: string;
+  currentPrice: number;
+  previousClose: number;
+  changePercent: number;
+  assetType: PortfolioAssetType;
+}
+
+export interface PortfolioTransaction {
+  rowIndex: number;
+  id: string;
+  ticker: string;
+  date: string;
+  type: PortfolioTransactionType;
+  lots: number;
+  shares: number;
+  price: number;
+  fee: number;
+  currency: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted: string;
+}
+
+export interface PortfolioHoldingWithPrice extends PortfolioHolding {
+  currentValue: number;
+  costBasis: number;
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  priceError?: boolean;
+}
+
+export interface PortfolioSummary {
+  totalCostBasis: number;
+  totalCurrentValue: number;
+  totalUnrealizedPnl: number;
+  totalUnrealizedPnlPct: number;
+  totalDividends: number;
+  holdings: PortfolioHoldingWithPrice[];
+  bySector: { sector: string; value: number; pct: number }[];
+  byExchange: { exchange: string; value: number; pct: number }[];
+  byAssetType: { assetType: PortfolioAssetType; value: number; pct: number }[];
+}
+
+export const PORTFOLIO_HOLDING_COLS = {
+  id: 0,
+  ticker: 1,
+  name: 2,
+  exchange: 3,
+  lots: 4,
+  shares: 5,
+  avgPrice: 6,
+  currency: 7,
+  sector: 8,
+  purchaseDate: 9,
+  notes: 10,
+  createdAt: 11,
+  updatedAt: 12,
+  deleted: 13,
+  currentPrice: 14,
+  previousClose: 15,
+  changePercent: 16,
+  assetType: 17,
+} as const;
+
+export const PORTFOLIO_HOLDING_HEADERS = [
+  "id",
+  "ticker",
+  "name",
+  "exchange",
+  "lots",
+  "shares",
+  "avgPrice",
+  "currency",
+  "sector",
+  "purchaseDate",
+  "notes",
+  "createdAt",
+  "updatedAt",
+  "deleted",
+  "currentPrice",
+  "previousClose",
+  "changePercent",
+  "assetType",
+];
+
+export const PORTFOLIO_TX_COLS = {
+  id: 0,
+  ticker: 1,
+  date: 2,
+  type: 3,
+  lots: 4,
+  shares: 5,
+  price: 6,
+  fee: 7,
+  currency: 8,
+  notes: 9,
+  createdAt: 10,
+  updatedAt: 11,
+  deleted: 12,
+} as const;
+
+export const PORTFOLIO_TX_HEADERS = [
+  "id",
+  "ticker",
+  "date",
+  "type",
+  "lots",
+  "shares",
+  "price",
+  "fee",
+  "currency",
+  "notes",
+  "createdAt",
+  "updatedAt",
+  "deleted",
+];
