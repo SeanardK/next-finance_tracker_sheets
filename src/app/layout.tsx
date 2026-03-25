@@ -58,6 +58,22 @@ export default function RootLayout({
         <head>
           <ColorSchemeScript localStorageKey="fintrack-color-scheme" />
           <meta name="theme-color" content="#7950f2" />
+          <link rel="apple-touch-icon" href="/icons/ios/180.png" />
+          <link
+            rel="apple-touch-icon"
+            sizes="152x152"
+            href="/icons/ios/152.png"
+          />
+          <link
+            rel="apple-touch-icon"
+            sizes="167x167"
+            href="/icons/ios/167.png"
+          />
+          <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="/icons/ios/180.png"
+          />
         </head>
         <body className="min-h-full flex flex-col">
           <ServiceWorkerRegistration />

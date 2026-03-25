@@ -26,9 +26,10 @@ import {
   IconAlertCircle,
   IconEdit,
   IconPlus,
+  IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useCategories,
   useCreateCategory,
@@ -51,6 +52,9 @@ export default function CategoriesPage() {
   const deleteCat = useDeleteCategory();
 
   const [modalOpen, { open, close }] = useDisclosure(false);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>("name-asc");
   const [editTarget, setEditTarget] = useState<
     (Category & { rowIdx: number }) | null
   >(null);
@@ -124,10 +128,49 @@ export default function CategoriesPage() {
     }
   }
 
-  const categories = data?.categories ?? [];
-  const parentOptions = categories
+  const rawCategories = data?.categories ?? [];
+
+  function sortCats(list: typeof rawCategories) {
+    return [...list].sort((a, b) => {
+      switch (sortBy) {
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "type-asc":
+          return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+        case "type-desc":
+          return b.type.localeCompare(a.type) || a.name.localeCompare(b.name);
+        default: // name-asc
+          return a.name.localeCompare(b.name);
+      }
+    });
+  }
+
+  const categories = sortCats(rawCategories).reduce<typeof rawCategories>(
+    (acc, cat) => {
+      if (!cat.parentId) {
+        acc.push(cat);
+        sortCats(rawCategories.filter((c) => c.parentId === cat.id)).forEach(
+          (child) => {
+            acc.push(child);
+          },
+        );
+      }
+      return acc;
+    },
+    [],
+  );
+  const parentOptions = rawCategories
     .filter((c) => !c.parentId)
     .map((c) => ({ value: c.id, label: c.name }));
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return categories.filter((cat) => {
+      if (filterType && cat.type !== filterType) return false;
+      if (q && !cat.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [categories, search, filterType]);
 
   return (
     <>
@@ -187,11 +230,47 @@ export default function CategoriesPage() {
         </form>
       </Modal>
 
-      <Group justify="space-between" mb="lg">
+      <Group justify="space-between" mb="md">
         <Title order={2}>Categories</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={open}>
           Add Category
         </Button>
+      </Group>
+
+      <Group mb="lg" gap="sm">
+        <TextInput
+          placeholder="Search by name…"
+          leftSection={<IconSearch size={16} />}
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          style={{ flex: 1 }}
+          aria-label="Search categories"
+        />
+        <Select
+          placeholder="All types"
+          data={[
+            { value: "expense", label: "Expense" },
+            { value: "income", label: "Income" },
+            { value: "all", label: "All" },
+          ]}
+          value={filterType}
+          onChange={setFilterType}
+          clearable
+          w={140}
+          aria-label="Filter by type"
+        />
+        <Select
+          data={[
+            { value: "name-asc", label: "Name A-Z" },
+            { value: "name-desc", label: "Name Z-A" },
+            { value: "type-asc", label: "Type A-Z" },
+            { value: "type-desc", label: "Type Z-A" },
+          ]}
+          value={sortBy}
+          onChange={setSortBy}
+          w={150}
+          aria-label="Sort categories"
+        />
       </Group>
 
       {error ? (
@@ -214,16 +293,18 @@ export default function CategoriesPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {categories.length === 0 ? (
+                {filtered.length === 0 ? (
                   <Table.Tr>
                     <Table.Td colSpan={5}>
                       <Text ta="center" c="dimmed" py="xl">
-                        No categories yet
+                        {rawCategories.length === 0
+                          ? "No categories yet"
+                          : "No categories match the filter"}
                       </Text>
                     </Table.Td>
                   </Table.Tr>
                 ) : (
-                  categories.map((cat, idx) => (
+                  filtered.map((cat, idx) => (
                     <Table.Tr
                       key={cat.id}
                       style={{ paddingLeft: cat.parentId ? 24 : 0 }}
