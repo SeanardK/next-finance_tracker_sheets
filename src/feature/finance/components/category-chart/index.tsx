@@ -16,7 +16,8 @@ export function CategoryChart({ data, categories = [], height = 300 }: Props) {
   const pieOption = {
     tooltip: {
       trigger: "item",
-      formatter: "{b}: {c} ({d}%)",
+      formatter: (params: { name: string; value: number; percent: number }) =>
+        `${params.name}: ${params.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} (${params.percent}%)`,
     },
     legend: {
       orient: "vertical",
