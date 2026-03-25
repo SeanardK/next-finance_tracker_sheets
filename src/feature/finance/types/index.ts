@@ -151,6 +151,7 @@ export interface Budget {
   type: "income" | "expense";
   amount: number;
   currency: string;
+  account: string; // empty = applies to all accounts
   createdAt: string;
   updatedAt: string;
 }
@@ -170,6 +171,7 @@ export const BUDGET_COLS = {
   currency: 5,
   createdAt: 6,
   updatedAt: 7,
+  account: 8, // appended at end — empty string = all accounts
 } as const;
 
 export const BUDGET_HEADERS = [
@@ -181,6 +183,7 @@ export const BUDGET_HEADERS = [
   "currency",
   "createdAt",
   "updatedAt",
+  "account",
 ];
 
 export const META_HEADERS = ["key", "value"];

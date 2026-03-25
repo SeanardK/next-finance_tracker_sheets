@@ -36,6 +36,7 @@ import {
   useBudgets,
   useUpdateBudget,
 } from "@/feature/finance/hooks/use-budgets";
+import { useAccounts } from "@/feature/finance/hooks/use-accounts";
 import { useCategories } from "@/feature/finance/hooks/use-categories";
 import type { Budget, BudgetWithActual } from "@/feature/finance/types";
 
@@ -44,6 +45,7 @@ interface BudgetForm {
   type: "income" | "expense";
   amount: number;
   currency: string;
+  account: string; // empty = applies to all accounts
 }
 
 function getMonthOptions() {
@@ -109,6 +111,7 @@ function BudgetSection({
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Category</Table.Th>
+              <Table.Th>Account</Table.Th>
               <Table.Th>Budgeted</Table.Th>
               <Table.Th>Actual</Table.Th>
               <Table.Th>Remaining</Table.Th>
@@ -135,6 +138,13 @@ function BudgetSection({
                       </Text>
                     </Table.Td>
                     <Table.Td>
+                      {" "}
+                      <Text size="sm" c={b.account ? undefined : "dimmed"}>
+                        {b.account || "All accounts"}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      {" "}
                       <Text size="sm">
                         {formatAmount(b.amount, b.currency)}
                       </Text>
@@ -208,6 +218,7 @@ function BudgetSection({
                       Total
                     </Text>
                   </Table.Td>
+                  <Table.Td />
                   <Table.Td>
                     <Text size="sm" fw={700}>
                       {formatAmount(totalBudgeted, currency)}
@@ -253,6 +264,7 @@ export default function BudgetingPage() {
 
   const { data, isLoading, error } = useBudgets(month);
   const { data: categoriesData } = useCategories();
+  const { data: accountsData } = useAccounts();
   const createBudget = useCreateBudget(month);
   const updateBudget = useUpdateBudget(month);
   const deleteBudget = useDeleteBudget(month);
@@ -263,6 +275,7 @@ export default function BudgetingPage() {
       type: "expense",
       amount: 0,
       currency: "IDR",
+      account: "",
     },
     validate: {
       category: (v) => (!v ? "Category required" : null),
@@ -272,8 +285,16 @@ export default function BudgetingPage() {
 
   const categoryOptions = (categoriesData?.categories ?? []).map((c) => ({
     value: c.name,
-    label: c.parentId ? `  â†³ ${c.name}` : c.name,
+    label: c.parentId ? `  ↳ ${c.name}` : c.name,
   }));
+
+  const accountOptions = [
+    { value: "", label: "All accounts (unassigned)" },
+    ...(accountsData?.accounts ?? []).map((a) => ({
+      value: a.name,
+      label: a.name,
+    })),
+  ];
 
   function handleEdit(b: BudgetWithActual) {
     setEditTarget(b);
@@ -282,6 +303,7 @@ export default function BudgetingPage() {
       type: b.type,
       amount: b.amount,
       currency: b.currency,
+      account: b.account ?? "",
     });
     open();
   }
@@ -314,6 +336,7 @@ export default function BudgetingPage() {
             type: values.type,
             amount: values.amount,
             currency: values.currency,
+            account: values.account,
           } as Budget,
         });
         notifications.show({ color: "green", message: "Budget updated" });
@@ -324,6 +347,7 @@ export default function BudgetingPage() {
           type: values.type,
           amount: values.amount,
           currency: values.currency,
+          account: values.account,
         });
         notifications.show({ color: "green", message: "Budget entry added" });
       }
@@ -388,6 +412,15 @@ export default function BudgetingPage() {
               data={["IDR", "USD", "EUR", "GBP", "JPY", "SGD"]}
               aria-label="Currency"
               {...form.getInputProps("currency")}
+            />
+            <Select
+              label="Account"
+              description="Leave as 'All accounts' or assign to a specific account"
+              data={accountOptions}
+              clearable={false}
+              searchable
+              aria-label="Account"
+              {...form.getInputProps("account")}
             />
             <Group justify="flex-end">
               <Button variant="default" onClick={close} type="button">

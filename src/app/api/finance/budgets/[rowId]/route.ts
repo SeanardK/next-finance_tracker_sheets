@@ -36,6 +36,7 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
     String(body.currency ?? "IDR"),
     String(body.createdAt ?? now),
     now,
+    String(body.account ?? ""),
   ];
 
   try {

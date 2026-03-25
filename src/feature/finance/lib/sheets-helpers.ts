@@ -377,7 +377,7 @@ export async function readBudgets(
   const res = await withBackoff(() =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "budgets!A2:H",
+      range: "budgets!A2:I",
     }),
   );
   return (res.data.values ?? []).map((row, idx) => rowToBudget(row, idx + 2));
@@ -392,7 +392,7 @@ export async function appendBudget(
   await withBackoff(() =>
     sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "budgets!A:H",
+      range: "budgets!A:I",
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
@@ -410,7 +410,7 @@ export async function updateBudgetRow(
   await withBackoff(() =>
     sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `budgets!A${rowIndex}:H${rowIndex}`,
+      range: `budgets!A${rowIndex}:I${rowIndex}`,
       valueInputOption: "RAW",
       requestBody: { values: [row] },
     }),
@@ -456,5 +456,6 @@ function rowToBudget(row: string[], rowIndex: number): Budget {
     currency: row[BUDGET_COLS.currency] ?? "IDR",
     createdAt: row[BUDGET_COLS.createdAt] ?? "",
     updatedAt: row[BUDGET_COLS.updatedAt] ?? "",
+    account: row[BUDGET_COLS.account] ?? "",
   };
 }

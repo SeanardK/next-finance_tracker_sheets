@@ -44,14 +44,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Budget allocated for this month — sum expense budgets (not per-account,
-    // but total budgeted gives the ceiling we track against spending per account)
-    const monthBudgetedTotal = budgets
-      .filter((b) => b.month === month && b.type === "expense")
-      .reduce((s, b) => s + b.amount, 0);
+    // Budget allocated for this month, per account
+    // Strategy:
+    //   1. Budgets with a specific account → assigned directly to that account
+    //   2. Budgets with account="" (all accounts) → distribute proportionally by spending share
+    const monthBudgets = budgets.filter(
+      (b) => b.month === month && b.type === "expense",
+    );
 
-    // Distribute budgeted proportionally to spending weight per account
-    // (simple: each account gets its share of total spending as a fraction of budget)
+    // Direct per-account budgets
+    const directBudgetMap = new Map<string, number>();
+    let proportionalBudgetTotal = 0;
+    for (const b of monthBudgets) {
+      if (b.account) {
+        directBudgetMap.set(
+          b.account,
+          (directBudgetMap.get(b.account) ?? 0) + b.amount,
+        );
+      } else {
+        proportionalBudgetTotal += b.amount;
+      }
+    }
+
+    // Proportional distribution of unassigned budgets by spending share
     const totalMonthSpent = Array.from(monthSpentMap.values()).reduce(
       (s, v) => s + v,
       0,
@@ -63,9 +78,11 @@ export async function GET(request: NextRequest) {
       const monthSpent = monthSpentMap.get(acct.name) ?? 0;
       const currency = currencyMap.get(acct.name) ?? "IDR";
 
-      // Per-account share of total monthly budget (proportional to spending)
+      // Direct budget + proportional share of unassigned budgets
+      const direct = directBudgetMap.get(acct.name) ?? 0;
       const share = totalMonthSpent > 0 ? monthSpent / totalMonthSpent : 0;
-      const monthBudgeted = Math.round(monthBudgetedTotal * share);
+      const proportional = Math.round(proportionalBudgetTotal * share);
+      const monthBudgeted = direct + proportional;
       const monthRemaining = monthBudgeted - monthSpent;
 
       return {
@@ -83,44 +100,34 @@ export async function GET(request: NextRequest) {
 
     // Also include accounts that have transactions but aren't in the accounts list
     const knownNames = new Set(accounts.map((a) => a.name));
+
+    function buildUnknownBalance(acct: string) {
+      const totalIncome = incomeMap.get(acct) ?? 0;
+      const totalExpense = expenseMap.get(acct) ?? 0;
+      const monthSpent = monthSpentMap.get(acct) ?? 0;
+      const direct = directBudgetMap.get(acct) ?? 0;
+      const share = totalMonthSpent > 0 ? monthSpent / totalMonthSpent : 0;
+      const monthBudgeted =
+        direct + Math.round(proportionalBudgetTotal * share);
+      return {
+        account: acct,
+        color: "#868e96",
+        totalIncome,
+        totalExpense,
+        netBalance: totalIncome - totalExpense,
+        monthBudgeted,
+        monthSpent,
+        monthRemaining: monthBudgeted - monthSpent,
+        currency: currencyMap.get(acct) ?? "IDR",
+      };
+    }
+
     for (const [acct] of incomeMap) {
-      if (!knownNames.has(acct)) {
-        const totalIncome = incomeMap.get(acct) ?? 0;
-        const totalExpense = expenseMap.get(acct) ?? 0;
-        const monthSpent = monthSpentMap.get(acct) ?? 0;
-        const share = totalMonthSpent > 0 ? monthSpent / totalMonthSpent : 0;
-        const monthBudgeted = Math.round(monthBudgetedTotal * share);
-        balances.push({
-          account: acct,
-          color: "#868e96",
-          totalIncome,
-          totalExpense,
-          netBalance: totalIncome - totalExpense,
-          monthBudgeted,
-          monthSpent,
-          monthRemaining: monthBudgeted - monthSpent,
-          currency: currencyMap.get(acct) ?? "IDR",
-        });
-      }
+      if (!knownNames.has(acct)) balances.push(buildUnknownBalance(acct));
     }
     for (const [acct] of expenseMap) {
-      if (!knownNames.has(acct) && !incomeMap.has(acct)) {
-        const totalExpense = expenseMap.get(acct) ?? 0;
-        const monthSpent = monthSpentMap.get(acct) ?? 0;
-        const share = totalMonthSpent > 0 ? monthSpent / totalMonthSpent : 0;
-        const monthBudgeted = Math.round(monthBudgetedTotal * share);
-        balances.push({
-          account: acct,
-          color: "#868e96",
-          totalIncome: 0,
-          totalExpense,
-          netBalance: -totalExpense,
-          monthBudgeted,
-          monthSpent,
-          monthRemaining: monthBudgeted - monthSpent,
-          currency: currencyMap.get(acct) ?? "IDR",
-        });
-      }
+      if (!knownNames.has(acct) && !incomeMap.has(acct))
+        balances.push(buildUnknownBalance(acct));
     }
 
     return Response.json({ balances, month });

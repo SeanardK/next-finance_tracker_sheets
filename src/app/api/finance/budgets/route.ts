@@ -26,15 +26,26 @@ export async function GET(request: NextRequest) {
 
     const monthBudgets = allBudgets.filter((b) => b.month === month);
 
-    // Compute actual per category for this month
+    // Compute actuals: key = "category|||account" (account empty = all accounts)
     const actualMap = new Map<string, number>();
     for (const tx of transactions) {
-      if (tx.date.slice(0, 7) !== month || !tx.category) continue;
-      actualMap.set(tx.category, (actualMap.get(tx.category) ?? 0) + tx.amount);
+      if (
+        tx.date.slice(0, 7) !== month ||
+        !tx.category ||
+        tx.deleted === "TRUE"
+      )
+        continue;
+      // Accumulate into the specific-account key
+      const specificKey = `${tx.category}|||${tx.account ?? ""}`;
+      actualMap.set(specificKey, (actualMap.get(specificKey) ?? 0) + tx.amount);
+      // Also accumulate into the all-accounts key (empty account)
+      const allKey = `${tx.category}|||`;
+      actualMap.set(allKey, (actualMap.get(allKey) ?? 0) + tx.amount);
     }
 
     const budgets: BudgetWithActual[] = monthBudgets.map((b) => {
-      const actual = actualMap.get(b.category) ?? 0;
+      const key = `${b.category}|||${b.account ?? ""}`;
+      const actual = actualMap.get(key) ?? 0;
       const remaining = b.amount - actual;
       const percentUsed = b.amount > 0 ? (actual / b.amount) * 100 : 0;
       return { ...b, actual, remaining, percentUsed };
@@ -60,7 +71,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { month, category, type, amount, currency } = body as Record<
+  const { month, category, type, amount, currency, account } = body as Record<
     string,
     string
   >;
@@ -81,6 +92,7 @@ export async function POST(request: NextRequest) {
     currency ?? "IDR",
     now,
     now,
+    account ?? "",
   ];
 
   try {
