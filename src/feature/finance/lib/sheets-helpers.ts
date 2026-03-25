@@ -483,7 +483,7 @@ function rowToBudget(row: string[], rowIndex: number): Budget {
   };
 }
 
-// ─── Portfolio Holdings ───────────────────────────────────────────────────────
+//  Portfolio Holdings
 
 export async function readPortfolioHoldings(
   spreadsheetId: string,
@@ -493,7 +493,7 @@ export async function readPortfolioHoldings(
   const res = await withBackoff(() =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: "portfolio_holdings!A2:Q",
+      range: "portfolio_holdings!A2:R",
       valueRenderOption: "UNFORMATTED_VALUE",
     }),
   );
@@ -511,7 +511,7 @@ export async function appendPortfolioHolding(
   await withBackoff(() =>
     sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: "portfolio_holdings!A:Q",
+      range: "portfolio_holdings!A:R",
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
@@ -529,7 +529,7 @@ export async function updatePortfolioHoldingRow(
   await withBackoff(() =>
     sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `portfolio_holdings!A${rowIndex}:Q${rowIndex}`,
+      range: `portfolio_holdings!A${rowIndex}:R${rowIndex}`,
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     }),
@@ -575,13 +575,16 @@ function rowToPortfolioHolding(
     deleted: row[PORTFOLIO_HOLDING_COLS.deleted] ?? "",
     currentPrice: Number(row[PORTFOLIO_HOLDING_COLS.currentPrice]) || 0,
     previousClose: Number(row[PORTFOLIO_HOLDING_COLS.previousClose]) || 0,
-    // changepct from GOOGLEFINANCE is a decimal fraction (0.0234 = 2.34%)
     changePercent:
       (Number(row[PORTFOLIO_HOLDING_COLS.changePercent]) || 0) * 100,
+    assetType:
+      (row[
+        PORTFOLIO_HOLDING_COLS.assetType
+      ] as PortfolioHolding["assetType"]) || "stock",
   };
 }
 
-// ─── Portfolio Transactions ───────────────────────────────────────────────────
+//  Portfolio Transactions
 
 export async function readPortfolioTransactions(
   spreadsheetId: string,

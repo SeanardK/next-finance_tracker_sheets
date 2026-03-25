@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
     "@mantine/notifications",
     "@mantine/dates",
   ],
-  // Prevent googleapis and its heavy deps from being bundled in the client
   serverExternalPackages: ["googleapis", "google-auth-library"],
 };
 

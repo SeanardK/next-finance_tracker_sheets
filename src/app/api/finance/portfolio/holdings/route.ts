@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
     sector,
     purchaseDate,
     notes,
+    assetType,
+    manualPrice,
   } = body as Record<string, string | number>;
 
   if (!ticker || !avgPrice) {
@@ -62,9 +64,24 @@ export async function POST(request: NextRequest) {
 
   const tickerStr = String(ticker).toUpperCase().trim();
   const now = new Date().toISOString();
+  const assetTypeStr = String(assetType ?? "stock");
 
   const isIDX = tickerStr.endsWith(".JK");
   const finalTicker = isIDX ? tickerStr.slice(0, -3) : tickerStr;
+  const gfTicker = isIDX ? `IDX:${finalTicker}` : finalTicker;
+
+  const GF_TYPES = ["stock", "etf", "mutual-fund"];
+  const useGF = GF_TYPES.includes(assetTypeStr);
+
+  const currentPriceCell = useGF
+    ? `=GOOGLEFINANCE("${gfTicker}","price")`
+    : String(manualPrice ?? 0);
+  const prevCloseCell = useGF
+    ? `=GOOGLEFINANCE("${gfTicker}","closeyest")`
+    : "";
+  const changePctCell = useGF
+    ? `=GOOGLEFINANCE("${gfTicker}","changepct")`
+    : "";
 
   const row = [
     nanoid(10),
@@ -81,9 +98,10 @@ export async function POST(request: NextRequest) {
     now,
     now,
     "FALSE",
-    `=GOOGLEFINANCE("${isIDX ? "IDX:" : ""}${finalTicker}","price")`,
-    `=GOOGLEFINANCE("${isIDX ? "IDX:" : ""}${finalTicker}","closeyest")`,
-    `=GOOGLEFINANCE("${isIDX ? "IDX:" : ""}${finalTicker}","changepct")`,
+    currentPriceCell,
+    prevCloseCell,
+    changePctCell,
+    assetTypeStr,
   ];
 
   try {

@@ -47,7 +47,6 @@ export interface AccountBalance {
   totalIncome: number;
   totalExpense: number;
   netBalance: number;
-  // month-scoped
   monthBudgeted: number;
   monthSpent: number;
   monthRemaining: number;
@@ -146,12 +145,12 @@ export const ACCT_HEADERS = ["id", "name", "type", "color", "createdAt"];
 export interface Budget {
   rowIndex: number;
   id: string;
-  month: string; // YYYY-MM
+  month: string;
   category: string;
   type: "income" | "expense";
   amount: number;
   currency: string;
-  account: string; // empty = applies to all accounts
+  account: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -171,7 +170,7 @@ export const BUDGET_COLS = {
   currency: 5,
   createdAt: 6,
   updatedAt: 7,
-  account: 8, // appended at end — empty string = all accounts
+  account: 8,
 } as const;
 
 export const BUDGET_HEADERS = [
@@ -188,29 +187,56 @@ export const BUDGET_HEADERS = [
 
 export const META_HEADERS = ["key", "value"];
 
-// ─── Portfolio ────────────────────────────────────────────────────────────────
+//  Portfolio
 
-export type PortfolioTransactionType = "buy" | "sell" | "dividend" | "split";
+export type PortfolioAssetType =
+  | "stock"
+  | "etf"
+  | "mutual-fund"
+  | "crypto"
+  | "bond"
+  | "commodity"
+  | "real-estate"
+  | "cash"
+  | "other";
+
+export const GOOGLEFINANCE_ASSET_TYPES: PortfolioAssetType[] = [
+  "stock",
+  "etf",
+  "mutual-fund",
+];
+
+export type PortfolioTransactionType =
+  | "buy"
+  | "sell"
+  | "dividend"
+  | "split"
+  | "interest"
+  | "deposit"
+  | "withdrawal"
+  | "staking_reward"
+  | "coupon";
 
 export interface PortfolioHolding {
   rowIndex: number;
   id: string;
   ticker: string;
   name: string;
-  exchange: string; // e.g. "IDX", "NASDAQ", "NYSE"
-  lots: number; // lots held (1 lot = 100 shares on IDX; 1 lot = 1 share otherwise)
-  shares: number; // total shares (lots * lotSize OR direct)
-  avgPrice: number; // average cost basis per share
+  exchange: string;
+  lots: number;
+  shares: number;
+  avgPrice: number;
   currency: string;
   sector: string;
-  purchaseDate: string; // ISO date of first purchase
+  purchaseDate: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
   deleted: string;
-  currentPrice: number; // =GOOGLEFINANCE(ticker,"price")
-  previousClose: number; // =GOOGLEFINANCE(ticker,"closeyest")
-  changePercent: number; // =GOOGLEFINANCE(ticker,"changepct") * 100
+  currentPrice: number;
+  previousClose: number;
+  changePercent: number;
+  assetType: PortfolioAssetType;
 }
 
 export interface PortfolioTransaction {
@@ -221,7 +247,7 @@ export interface PortfolioTransaction {
   type: PortfolioTransactionType;
   lots: number;
   shares: number;
-  price: number; // price per share
+  price: number;
   fee: number;
   currency: string;
   notes: string;
@@ -235,7 +261,7 @@ export interface PortfolioHoldingWithPrice extends PortfolioHolding {
   costBasis: number;
   unrealizedPnl: number;
   unrealizedPnlPct: number;
-  priceError?: boolean; // true if market price fetch failed
+  priceError?: boolean;
 }
 
 export interface PortfolioSummary {
@@ -247,6 +273,7 @@ export interface PortfolioSummary {
   holdings: PortfolioHoldingWithPrice[];
   bySector: { sector: string; value: number; pct: number }[];
   byExchange: { exchange: string; value: number; pct: number }[];
+  byAssetType: { assetType: PortfolioAssetType; value: number; pct: number }[];
 }
 
 export const PORTFOLIO_HOLDING_COLS = {
@@ -267,6 +294,7 @@ export const PORTFOLIO_HOLDING_COLS = {
   currentPrice: 14,
   previousClose: 15,
   changePercent: 16,
+  assetType: 17,
 } as const;
 
 export const PORTFOLIO_HOLDING_HEADERS = [
@@ -287,6 +315,7 @@ export const PORTFOLIO_HOLDING_HEADERS = [
   "currentPrice",
   "previousClose",
   "changePercent",
+  "assetType",
 ];
 
 export const PORTFOLIO_TX_COLS = {

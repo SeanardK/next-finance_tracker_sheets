@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Button,
@@ -20,9 +20,44 @@ import { notifications } from "@mantine/notifications";
 import { useEffect, useRef, useState } from "react";
 import type { TickerResult } from "@/app/api/finance/portfolio/ticker-search/route";
 import { useCreateHolding, useUpdateHolding } from "../../hooks/use-portfolio";
-import type { PortfolioHolding } from "../../types";
+import type { PortfolioAssetType, PortfolioHolding } from "../../types";
+import { GOOGLEFINANCE_ASSET_TYPES } from "../../types";
 
-const EXCHANGES = ["IDX", "NASDAQ", "NYSE", "SGX", "HKEX", "LSE", "Other"];
+const ASSET_TYPE_OPTIONS: { value: PortfolioAssetType; label: string }[] = [
+  { value: "stock", label: "Stock" },
+  { value: "etf", label: "ETF" },
+  { value: "mutual-fund", label: "Mutual Fund" },
+  { value: "crypto", label: "Crypto" },
+  { value: "bond", label: "Bond" },
+  { value: "commodity", label: "Commodity" },
+  { value: "real-estate", label: "Real Estate" },
+  { value: "cash", label: "Cash / Savings" },
+  { value: "other", label: "Other" },
+];
+
+const STOCK_EXCHANGES = [
+  "IDX",
+  "NASDAQ",
+  "NYSE",
+  "SGX",
+  "HKEX",
+  "LSE",
+  "Other",
+];
+const CRYPTO_EXCHANGES = ["Binance", "Coinbase", "Kraken", "OKX", "Other"];
+const OTHER_EXCHANGES = [
+  "Bank",
+  "BEI",
+  "OTC",
+  "COMEX",
+  "NYMEX",
+  "Direct",
+  "Other",
+];
+const ALL_EXCHANGES = [
+  ...new Set([...STOCK_EXCHANGES, ...CRYPTO_EXCHANGES, ...OTHER_EXCHANGES]),
+];
+
 const SECTORS = [
   "Financials",
   "Consumer Goods",
@@ -38,6 +73,12 @@ const SECTORS = [
   "Other",
 ];
 
+const TICKER_SEARCH_TYPES: PortfolioAssetType[] = [
+  "stock",
+  "etf",
+  "mutual-fund",
+];
+
 interface Props {
   opened: boolean;
   onClose: () => void;
@@ -45,6 +86,7 @@ interface Props {
 }
 
 interface FormValues {
+  assetType: PortfolioAssetType;
   ticker: string;
   name: string;
   exchange: string;
@@ -54,9 +96,33 @@ interface FormValues {
   sector: string;
   purchaseDate: string;
   notes: string;
+  manualPrice: number;
 }
 
 const IDX_LOT_SIZE = 100;
+
+function calcShares(
+  lots: number,
+  exchange: string,
+  assetType: PortfolioAssetType,
+): number {
+  if (assetType === "stock" && exchange === "IDX") return lots * IDX_LOT_SIZE;
+  return lots;
+}
+
+function getLotsLabel(assetType: PortfolioAssetType, exchange: string): string {
+  if (assetType === "stock" && exchange === "IDX")
+    return "Lots (1 lot = 100 shares)";
+  if (
+    assetType === "stock" ||
+    assetType === "etf" ||
+    assetType === "mutual-fund"
+  )
+    return "Shares";
+  if (assetType === "crypto") return "Quantity (e.g. 0.5 BTC)";
+  if (assetType === "cash") return "Balance";
+  return "Quantity / Units";
+}
 
 export function AddHoldingModal({ opened, onClose, editing }: Props) {
   const create = useCreateHolding();
@@ -70,9 +136,14 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState(editing?.ticker ?? "");
 
+  const editingAssetType: PortfolioAssetType = (editing?.assetType ??
+    "stock") as PortfolioAssetType;
+  const isEditingGF = GOOGLEFINANCE_ASSET_TYPES.includes(editingAssetType);
+
   const form = useForm<FormValues>({
     initialValues: editing
       ? {
+          assetType: editingAssetType,
           ticker: editing.ticker,
           name: editing.name,
           exchange: editing.exchange,
@@ -82,8 +153,10 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
           sector: editing.sector,
           purchaseDate: editing.purchaseDate,
           notes: editing.notes,
+          manualPrice: isEditingGF ? 0 : editing.currentPrice,
         }
       : {
+          assetType: "stock",
           ticker: "",
           name: "",
           exchange: "IDX",
@@ -93,13 +166,17 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
           sector: "",
           purchaseDate: new Date().toISOString().slice(0, 10),
           notes: "",
+          manualPrice: 0,
         },
     validate: {
       ticker: () => null,
       avgPrice: (v) => (v <= 0 ? "Average price must be positive" : null),
-      lots: (v) => (v < 0 ? "Lots cannot be negative" : null),
+      lots: (v) => (v < 0 ? "Quantity cannot be negative" : null),
     },
   });
+
+  const isGF = GOOGLEFINANCE_ASSET_TYPES.includes(form.values.assetType);
+  const useTickerSearch = TICKER_SEARCH_TYPES.includes(form.values.assetType);
 
   const fillFromMetaRef = useRef<
     ((val: string, meta: TickerResult) => void) | null
@@ -139,6 +216,7 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
   };
 
   useEffect(() => {
+    if (!useTickerSearch) return;
     if (!debouncedSearch || debouncedSearch.length < 1) {
       setTickerOptions([]);
       return;
@@ -153,7 +231,7 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
         if (cancelled) return;
         const options = results.map((r) => ({
           value: r.symbol,
-          label: `${r.symbol} — ${r.shortname}`,
+          label: `${r.symbol} â€“ ${r.shortname}`,
           meta: r,
         }));
         setTickerOptions(options);
@@ -165,21 +243,21 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [debouncedSearch]);
-
-  function calcShares(lots: number, exchange: string): number {
-    return exchange === "IDX" ? lots * IDX_LOT_SIZE : lots;
-  }
+  }, [debouncedSearch, useTickerSearch]);
 
   async function handleSubmit(values: FormValues) {
-    // Accept either a dropdown-selected ticker or whatever the user typed
     const ticker = values.ticker.trim() || tickerSearch.trim().toUpperCase();
     if (!ticker) {
-      form.setFieldError("ticker", "Ticker is required");
+      form.setFieldError("ticker", "Identifier is required");
       return;
     }
-    const shares = calcShares(values.lots, values.exchange);
-    const payload = { ...values, ticker, shares };
+    const shares = calcShares(values.lots, values.exchange, values.assetType);
+    const payload = {
+      ...values,
+      ticker,
+      shares,
+      manualPrice: isGF ? undefined : values.manualPrice,
+    };
     try {
       if (editing) {
         await update.mutateAsync({ rowId: editing.rowIndex, data: payload });
@@ -196,6 +274,7 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
   }
 
   const isPending = create.isPending || update.isPending;
+  const lotsLabel = getLotsLabel(form.values.assetType, form.values.exchange);
 
   return (
     <Modal
@@ -206,125 +285,207 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="sm">
+          {/* Asset Type */}
           <Select
-            label="Ticker"
-            placeholder="Search ticker or company name…"
+            label="Asset Type"
+            data={ASSET_TYPE_OPTIONS}
             required
-            searchable
-            data={[
-              ...tickerOptions,
-              ...(form.values.ticker &&
-              !tickerOptions.some((o) => o.value === form.values.ticker)
-                ? [
-                    {
-                      value: form.values.ticker,
-                      label: selectedLabel || form.values.ticker,
-                    },
-                  ]
-                : []),
-            ]}
-            value={form.values.ticker || null}
-            searchValue={tickerSearch}
-            onSearchChange={(val) => {
-              if (!val && form.values.ticker) {
-                setTickerSearch(form.values.ticker);
-                return;
-              }
-              setTickerSearch(val);
-            }}
-            onChange={(val) => {
-              if (!val) return;
-              const match = tickerOptions.find((o) => o.value === val);
-              setSelectedLabel(match ? match.label : val);
-              form.setFieldValue("ticker", val);
-              setTickerSearch(val);
-              if (match) fillFromMetaRef.current?.(match.value, match.meta);
-            }}
-            error={form.errors.ticker}
-            nothingFoundMessage={
-              searchLoading ? (
-                <Group gap="xs">
-                  <Loader size="xs" />
-                  <Text size="sm">Searching…</Text>
-                </Group>
-              ) : tickerSearch.length > 0 ? (
-                "No results. Check spelling or enter manually."
-              ) : (
-                "Type to search"
-              )
-            }
-            filter={({ options }) => options}
-            aria-label="Ticker search"
-          />
-
-          <Select
-            label="Exchange"
-            data={EXCHANGES}
-            required
-            {...form.getInputProps("exchange")}
+            {...form.getInputProps("assetType")}
             onChange={(v) => {
-              form.setFieldValue("exchange", v ?? "IDX");
-              form.setFieldValue("currency", v === "IDX" ? "IDR" : "USD");
+              const at = (v ?? "stock") as PortfolioAssetType;
+              form.setFieldValue("assetType", at);
+              // Reset exchange to sensible default when switching types
+              if (at === "crypto") form.setFieldValue("exchange", "Binance");
+              else if (at === "cash") form.setFieldValue("exchange", "Bank");
+              else if (at === "real-estate")
+                form.setFieldValue("exchange", "Direct");
+              else if (at === "bond" || at === "commodity" || at === "other")
+                form.setFieldValue("exchange", "Other");
+              else form.setFieldValue("exchange", "IDX");
             }}
           />
 
-          <TextInput
-            label="Company Name"
-            placeholder="e.g. Bank Central Asia"
-            {...form.getInputProps("name")}
-          />
+          {/* Ticker / Identifier */}
+          {useTickerSearch ? (
+            <Select
+              label="Ticker"
+              placeholder="Search ticker or company nameâ€¦"
+              required
+              searchable
+              data={[
+                ...tickerOptions,
+                ...(form.values.ticker &&
+                !tickerOptions.some((o) => o.value === form.values.ticker)
+                  ? [
+                      {
+                        value: form.values.ticker,
+                        label: selectedLabel || form.values.ticker,
+                      },
+                    ]
+                  : []),
+              ]}
+              value={form.values.ticker || null}
+              searchValue={tickerSearch}
+              onSearchChange={(val) => {
+                if (!val && form.values.ticker) {
+                  setTickerSearch(form.values.ticker);
+                  return;
+                }
+                setTickerSearch(val);
+              }}
+              onChange={(val) => {
+                if (!val) return;
+                const match = tickerOptions.find((o) => o.value === val);
+                setSelectedLabel(match ? match.label : val);
+                form.setFieldValue("ticker", val);
+                setTickerSearch(val);
+                if (match) fillFromMetaRef.current?.(match.value, match.meta);
+              }}
+              error={form.errors.ticker}
+              nothingFoundMessage={
+                searchLoading ? (
+                  <Group gap="xs">
+                    <Loader size="xs" />
+                    <Text size="sm">Searchingâ€¦</Text>
+                  </Group>
+                ) : tickerSearch.length > 0 ? (
+                  "No results. Check spelling or enter manually."
+                ) : (
+                  "Type to search"
+                )
+              }
+              filter={({ options }) => options}
+              aria-label="Ticker search"
+            />
+          ) : (
+            <TextInput
+              label={
+                form.values.assetType === "crypto"
+                  ? "Ticker / Symbol"
+                  : form.values.assetType === "cash"
+                    ? "Account Name / Identifier"
+                    : form.values.assetType === "real-estate"
+                      ? "Property Identifier"
+                      : "Identifier / Symbol"
+              }
+              placeholder={
+                form.values.assetType === "crypto"
+                  ? "e.g. BTC, ETH, SOL"
+                  : form.values.assetType === "bond"
+                    ? "e.g. SBR013, FR0091"
+                    : form.values.assetType === "cash"
+                      ? "e.g. BCA-SAVINGS, DEPOSITO-1"
+                      : form.values.assetType === "real-estate"
+                        ? "e.g. PROPERTY-JAKARTA-1"
+                        : "e.g. GOLD, OIL"
+              }
+              required
+              value={form.values.ticker}
+              onChange={(e) =>
+                form.setFieldValue(
+                  "ticker",
+                  e.currentTarget.value.toUpperCase(),
+                )
+              }
+              error={form.errors.ticker}
+            />
+          )}
 
           <Group grow>
+            <Select
+              label="Exchange / Platform"
+              data={ALL_EXCHANGES}
+              searchable
+              {...form.getInputProps("exchange")}
+              onChange={(v) => {
+                form.setFieldValue("exchange", v ?? "Other");
+                if (v === "IDX") form.setFieldValue("currency", "IDR");
+                else if (v === "SGX") form.setFieldValue("currency", "SGD");
+                else if (v === "HKEX") form.setFieldValue("currency", "HKD");
+                else if (v === "LSE") form.setFieldValue("currency", "GBP");
+                else if (v === "Bank") form.setFieldValue("currency", "IDR");
+              }}
+            />
+            <TextInput
+              label="Company / Asset Name"
+              placeholder={
+                form.values.assetType === "cash"
+                  ? "e.g. BCA Tabungan"
+                  : form.values.assetType === "real-estate"
+                    ? "e.g. Ruko BSD City"
+                    : "e.g. Bank Central Asia"
+              }
+              {...form.getInputProps("name")}
+            />
+          </Group>
+
+          <Group grow>
+            <NumberInput
+              label={lotsLabel}
+              min={0}
+              decimalScale={form.values.assetType === "crypto" ? 8 : 0}
+              {...form.getInputProps("lots")}
+            />
             <NumberInput
               label={
                 <Tooltip
                   label={
-                    form.values.exchange === "IDX"
-                      ? "Number of lots. On IDX, 1 lot = 100 shares. For other exchanges this equals the number of shares directly."
-                      : "Number of shares to record for this holding."
+                    form.values.assetType === "cash"
+                      ? "Average cost or initial deposit amount"
+                      : form.values.assetType === "real-estate"
+                        ? "Purchase price of the property"
+                        : "Weighted average cost per unit across all buy transactions"
                   }
                   withArrow
                   multiline
                   maw={220}
                 >
                   <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
-                    {form.values.exchange === "IDX"
-                      ? "Lots (1 lot = 100 shares)"
-                      : "Lots / Shares"}
-                  </span>
-                </Tooltip>
-              }
-              min={0}
-              {...form.getInputProps("lots")}
-            />
-            <NumberInput
-              label={
-                <Tooltip
-                  label="Weighted average cost per share across all your buy transactions for this holding."
-                  withArrow
-                  multiline
-                  maw={220}
-                >
-                  <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
-                    Avg. Price / Share
+                    {form.values.assetType === "cash"
+                      ? "Cost / Unit"
+                      : "Avg. Price / Unit"}
                   </span>
                 </Tooltip>
               }
               min={0}
               thousandSeparator=","
+              decimalScale={form.values.assetType === "crypto" ? 8 : 0}
               required
               {...form.getInputProps("avgPrice")}
             />
           </Group>
 
+          {/* Manual Price â€” shown for non-GOOGLEFINANCE asset types */}
+          {!isGF && (
+            <NumberInput
+              label={
+                <Tooltip
+                  label="Current estimated market value per unit. Used for P&L calculations since automatic pricing is not available for this asset type."
+                  withArrow
+                  multiline
+                  maw={240}
+                >
+                  <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                    Current Price (manual)
+                  </span>
+                </Tooltip>
+              }
+              placeholder="Enter current market value per unit"
+              min={0}
+              thousandSeparator=","
+              decimalScale={form.values.assetType === "crypto" ? 8 : 0}
+              {...form.getInputProps("manualPrice")}
+            />
+          )}
+
           <Group grow>
             <Select
               label="Currency"
-              data={["IDR", "USD", "SGD", "HKD", "GBP"]}
+              data={["IDR", "USD", "SGD", "HKD", "GBP", "EUR", "USDT"]}
               {...form.getInputProps("currency")}
             />
             <Select
-              label="Sector"
+              label="Sector / Category"
               data={SECTORS}
               clearable
               {...form.getInputProps("sector")}

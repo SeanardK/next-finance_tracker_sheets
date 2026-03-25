@@ -4,6 +4,7 @@ import {
 } from "@/feature/finance/lib/sheets-helpers";
 import { getSpreadsheetId } from "../../_helpers";
 import type {
+  PortfolioAssetType,
   PortfolioHoldingWithPrice,
   PortfolioSummary,
 } from "@/feature/finance/types";
@@ -30,27 +31,28 @@ export async function GET() {
         holdings: [],
         bySector: [],
         byExchange: [],
+        byAssetType: [],
       };
       return Response.json(empty);
     }
 
-    // Prices are read directly from the GOOGLEFINANCE formulas in the holdings sheet
-
-    // Calculate total dividends
     const totalDividends = transactions
-      .filter((t) => t.type === "dividend")
+      .filter((t) => ["dividend", "interest", "coupon"].includes(t.type))
       .reduce((sum, t) => sum + t.price * t.shares, 0);
 
-    // Build enriched holdings
     const enriched: PortfolioHoldingWithPrice[] = holdings.map((h) => {
       const currentPrice = h.currentPrice;
       const previousClose = h.previousClose;
       const changePercent = h.changePercent;
-      const currentValue = currentPrice * h.shares;
+      const priceError = currentPrice <= 0;
       const costBasis = h.avgPrice * h.shares;
-      const unrealizedPnl = currentValue - costBasis;
-      const unrealizedPnlPct =
-        costBasis > 0 ? (unrealizedPnl / costBasis) * 100 : 0;
+      const currentValue = priceError ? costBasis : currentPrice * h.shares;
+      const unrealizedPnl = priceError ? 0 : currentValue - costBasis;
+      const unrealizedPnlPct = priceError
+        ? 0
+        : costBasis > 0
+          ? (unrealizedPnl / costBasis) * 100
+          : 0;
 
       return {
         ...h,
@@ -61,17 +63,22 @@ export async function GET() {
         costBasis,
         unrealizedPnl,
         unrealizedPnlPct,
-        priceError: currentPrice === 0,
+        priceError,
       };
     });
 
     const totalCostBasis = enriched.reduce((s, h) => s + h.costBasis, 0);
     const totalCurrentValue = enriched.reduce((s, h) => s + h.currentValue, 0);
-    const totalUnrealizedPnl = totalCurrentValue - totalCostBasis;
+    const pricedCostBasis = enriched
+      .filter((h) => !h.priceError)
+      .reduce((s, h) => s + h.costBasis, 0);
+    const pricedCurrentValue = enriched
+      .filter((h) => !h.priceError)
+      .reduce((s, h) => s + h.currentValue, 0);
+    const totalUnrealizedPnl = pricedCurrentValue - pricedCostBasis;
     const totalUnrealizedPnlPct =
-      totalCostBasis > 0 ? (totalUnrealizedPnl / totalCostBasis) * 100 : 0;
+      pricedCostBasis > 0 ? (totalUnrealizedPnl / pricedCostBasis) * 100 : 0;
 
-    // Group by sector
     const sectorMap = new Map<string, number>();
     for (const h of enriched) {
       const key = h.sector || "Other";
@@ -83,7 +90,6 @@ export async function GET() {
       pct: totalCurrentValue > 0 ? (value / totalCurrentValue) * 100 : 0,
     }));
 
-    // Group by exchange
     const exchangeMap = new Map<string, number>();
     for (const h of enriched) {
       const key = h.exchange || "Other";
@@ -95,6 +101,19 @@ export async function GET() {
       pct: totalCurrentValue > 0 ? (value / totalCurrentValue) * 100 : 0,
     }));
 
+    const assetTypeMap = new Map<string, number>();
+    for (const h of enriched) {
+      const key = h.assetType || "stock";
+      assetTypeMap.set(key, (assetTypeMap.get(key) ?? 0) + h.currentValue);
+    }
+    const byAssetType = [...assetTypeMap.entries()].map(
+      ([assetType, value]) => ({
+        assetType: assetType as PortfolioAssetType,
+        value,
+        pct: totalCurrentValue > 0 ? (value / totalCurrentValue) * 100 : 0,
+      }),
+    );
+
     const summary: PortfolioSummary = {
       totalCostBasis,
       totalCurrentValue,
@@ -104,6 +123,7 @@ export async function GET() {
       holdings: enriched,
       bySector,
       byExchange,
+      byAssetType,
     };
 
     return Response.json(summary);

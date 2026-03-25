@@ -38,12 +38,37 @@ export async function PUT(
   const updatedTicker = String(body.ticker ?? existing.ticker)
     .toUpperCase()
     .trim();
+  const updatedAssetType = String(
+    body.assetType ?? existing.assetType ?? "stock",
+  );
+  const updatedExchange = String(body.exchange ?? existing.exchange);
+
+  const isIDX =
+    updatedExchange.toUpperCase() === "IDX" || updatedTicker.endsWith(".JK");
+  const finalTicker = updatedTicker.endsWith(".JK")
+    ? updatedTicker.slice(0, -3)
+    : updatedTicker;
+  const gfTicker = isIDX ? `IDX:${finalTicker}` : finalTicker;
+
+  const GF_TYPES = ["stock", "etf", "mutual-fund"];
+  const useGF = GF_TYPES.includes(updatedAssetType);
+
+  const currentPriceCell = useGF
+    ? `=GOOGLEFINANCE("${gfTicker}","price")`
+    : String(body.manualPrice ?? existing.currentPrice ?? 0);
+  const prevCloseCell = useGF
+    ? `=GOOGLEFINANCE("${gfTicker}","closeyest")`
+    : "";
+  const changePctCell = useGF
+    ? `=GOOGLEFINANCE("${gfTicker}","changepct")`
+    : "";
+
   const now = new Date().toISOString();
   const row = [
     existing.id,
-    updatedTicker,
+    finalTicker,
     String(body.name ?? existing.name),
-    String(body.exchange ?? existing.exchange),
+    updatedExchange,
     String(body.lots ?? existing.lots),
     String(body.shares ?? existing.shares),
     String(body.avgPrice ?? existing.avgPrice),
@@ -54,9 +79,10 @@ export async function PUT(
     existing.createdAt,
     now,
     "FALSE",
-    `=GOOGLEFINANCE("${updatedTicker}","price")`,
-    `=GOOGLEFINANCE("${updatedTicker}","closeyest")`,
-    `=GOOGLEFINANCE("${updatedTicker}","changepct")`,
+    currentPriceCell,
+    prevCloseCell,
+    changePctCell,
+    updatedAssetType,
   ];
 
   try {

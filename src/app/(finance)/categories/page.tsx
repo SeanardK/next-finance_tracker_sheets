@@ -139,7 +139,7 @@ export default function CategoriesPage() {
           return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
         case "type-desc":
           return b.type.localeCompare(a.type) || a.name.localeCompare(b.name);
-        default: // name-asc
+        default:
           return a.name.localeCompare(b.name);
       }
     });

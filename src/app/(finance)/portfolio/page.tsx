@@ -224,7 +224,7 @@ export default function PortfolioPage() {
           <Group gap="sm" align="center">
             <Title order={2}>Portfolio Tracker</Title>
             <Badge variant="light" color="blue" size="sm">
-              Saham
+              Multi-Asset
             </Badge>
           </Group>
           <Group gap="sm">
@@ -349,12 +349,22 @@ export default function PortfolioPage() {
 
           <Tabs.Panel value="allocation" pt="md">
             {summaryLoading ? (
-              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+              <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
+                <Skeleton height={280} />
                 <Skeleton height={280} />
                 <Skeleton height={280} />
               </SimpleGrid>
             ) : (
-              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+              <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
+                <PortfolioAllocationChart
+                  title="By Asset Type"
+                  data={(summary?.byAssetType ?? []).map((a) => ({
+                    name: a.assetType,
+                    value: a.value,
+                    pct: a.pct,
+                  }))}
+                  currency={defaultCurrency}
+                />
                 <PortfolioAllocationChart
                   title="By Sector"
                   data={(summary?.bySector ?? []).map((s) => ({

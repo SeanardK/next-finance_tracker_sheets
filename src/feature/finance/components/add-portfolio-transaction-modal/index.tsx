@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Button,
@@ -39,6 +39,57 @@ interface FormValues {
 
 const IDX_LOT_SIZE = 100;
 
+const NO_LOTS_TYPES = [
+  "dividend",
+  "interest",
+  "coupon",
+  "staking_reward",
+  "deposit",
+  "withdrawal",
+];
+
+function getPriceLabel(type: string): string {
+  switch (type) {
+    case "dividend":
+      return "Dividend per Share";
+    case "interest":
+      return "Interest Amount";
+    case "coupon":
+      return "Coupon Payment";
+    case "staking_reward":
+      return "Reward Amount";
+    case "deposit":
+      return "Deposit Amount";
+    case "withdrawal":
+      return "Withdrawal Amount";
+    case "split":
+      return "Split Ratio (e.g. 2 for 2-for-1)";
+    default:
+      return "Price / Share";
+  }
+}
+
+function getTypeDescription(type: string): string | undefined {
+  switch (type) {
+    case "split":
+      return "Stock Split: adjust share count (e.g. 2-for-1). Set ratio to 2.";
+    case "dividend":
+      return "Cash dividend received per share held.";
+    case "interest":
+      return "Interest income received (savings, bonds, etc.)";
+    case "coupon":
+      return "Bond coupon payment received.";
+    case "staking_reward":
+      return "Crypto staking or yield reward.";
+    case "deposit":
+      return "Cash deposited into this position.";
+    case "withdrawal":
+      return "Cash withdrawn from this position.";
+    default:
+      return undefined;
+  }
+}
+
 export function AddPortfolioTransactionModal({
   opened,
   onClose,
@@ -74,7 +125,7 @@ export function AddPortfolioTransactionModal({
       ticker: (v) => (!v.trim() ? "Ticker is required" : null),
       date: (v) => (!v ? "Date is required" : null),
       price: (v, values) =>
-        values.type !== "split" && v <= 0 ? "Price must be positive" : null,
+        values.type !== "split" && v <= 0 ? "Amount must be positive" : null,
     },
   });
 
@@ -85,9 +136,26 @@ export function AddPortfolioTransactionModal({
   const selectedHolding = holdings.find((h) => h.ticker === form.values.ticker);
   const lotSize = selectedHolding?.exchange === "IDX" ? IDX_LOT_SIZE : 1;
 
+  const isNoLotsType = NO_LOTS_TYPES.includes(form.values.type);
+
   async function handleSubmit(values: FormValues) {
-    const shares =
-      values.type === "dividend" ? values.lots : values.lots * lotSize;
+    let shares: number;
+    if (
+      [
+        "deposit",
+        "withdrawal",
+        "interest",
+        "coupon",
+        "staking_reward",
+      ].includes(values.type)
+    ) {
+      shares = 1;
+    } else if (values.type === "dividend") {
+      shares = values.lots;
+    } else {
+      shares = values.lots * lotSize;
+    }
+
     const payload = {
       ...values,
       type: values.type as PortfolioTransaction["type"],
@@ -95,14 +163,8 @@ export function AddPortfolioTransactionModal({
     };
     try {
       if (editing) {
-        await update.mutateAsync({
-          rowId: editing.rowIndex,
-          data: payload,
-        });
-        notifications.show({
-          color: "green",
-          message: "Transaction updated",
-        });
+        await update.mutateAsync({ rowId: editing.rowIndex, data: payload });
+        notifications.show({ color: "green", message: "Transaction updated" });
       } else {
         await create.mutateAsync(payload);
         notifications.show({ color: "green", message: "Transaction added" });
@@ -114,8 +176,9 @@ export function AddPortfolioTransactionModal({
     }
   }
 
-  const isDividend = form.values.type === "dividend";
   const isPending = create.isPending || update.isPending;
+  const typeDescription = getTypeDescription(form.values.type);
+  const priceLabel = getPriceLabel(form.values.type);
 
   return (
     <Modal
@@ -128,7 +191,7 @@ export function AddPortfolioTransactionModal({
         <Stack gap="sm">
           <Group grow>
             <Select
-              label="Ticker"
+              label="Asset / Ticker"
               data={tickerOptions}
               searchable
               required
@@ -137,18 +200,32 @@ export function AddPortfolioTransactionModal({
             <Select
               label="Type"
               data={[
-                { value: "buy", label: "Buy" },
-                { value: "sell", label: "Sell" },
-                { value: "dividend", label: "Dividend" },
-                { value: "split", label: "Stock Split" },
+                {
+                  group: "Trade",
+                  items: [
+                    { value: "buy", label: "Buy" },
+                    { value: "sell", label: "Sell" },
+                    { value: "split", label: "Stock Split" },
+                  ],
+                },
+                {
+                  group: "Income",
+                  items: [
+                    { value: "dividend", label: "Dividend" },
+                    { value: "interest", label: "Interest" },
+                    { value: "coupon", label: "Coupon Payment" },
+                    { value: "staking_reward", label: "Staking Reward" },
+                  ],
+                },
+                {
+                  group: "Cash Flow",
+                  items: [
+                    { value: "deposit", label: "Deposit" },
+                    { value: "withdrawal", label: "Withdrawal" },
+                  ],
+                },
               ]}
-              description={
-                form.values.type === "split"
-                  ? "Stock Split: adjust share count (e.g. 2-for-1 splits each share into 2). Set price to the split ratio."
-                  : form.values.type === "dividend"
-                    ? "Dividend: record cash income received per share."
-                    : undefined
-              }
+              description={typeDescription}
               required
               {...form.getInputProps("type")}
             />
@@ -165,27 +242,30 @@ export function AddPortfolioTransactionModal({
           />
 
           <Group grow>
-            {!isDividend && (
+            {![
+              "deposit",
+              "withdrawal",
+              "interest",
+              "coupon",
+              "staking_reward",
+            ].includes(form.values.type) && (
               <NumberInput
-                label={`${selectedHolding?.exchange === "IDX" ? "Lots" : "Shares"}`}
+                label={
+                  form.values.type === "dividend"
+                    ? "Shares that received dividend"
+                    : selectedHolding?.exchange === "IDX"
+                      ? "Lots"
+                      : "Shares / Units"
+                }
                 min={0}
                 {...form.getInputProps("lots")}
               />
             )}
             <NumberInput
               label={
-                <Tooltip
-                  label={
-                    isDividend
-                      ? "Dividend amount received per share"
-                      : "Price per share for this transaction"
-                  }
-                  withArrow
-                  multiline
-                  maw={180}
-                >
+                <Tooltip label={priceLabel} withArrow multiline maw={200}>
                   <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
-                    {isDividend ? "Dividend per Share" : "Price / Share"}
+                    {priceLabel}
                   </span>
                 </Tooltip>
               }
@@ -196,12 +276,12 @@ export function AddPortfolioTransactionModal({
             />
           </Group>
 
-          {!isDividend && (
+          {!isNoLotsType && (
             <Group grow>
               <NumberInput
                 label={
                   <Tooltip
-                    label="Brokerage or platform fee paid for this transaction. Deducted from sell proceeds, added to buy cost."
+                    label="Brokerage or platform fee paid for this transaction."
                     withArrow
                     multiline
                     maw={220}
@@ -219,7 +299,7 @@ export function AddPortfolioTransactionModal({
               />
               <Select
                 label="Currency"
-                data={["IDR", "USD", "SGD", "HKD", "GBP"]}
+                data={["IDR", "USD", "SGD", "HKD", "GBP", "EUR", "USDT"]}
                 {...form.getInputProps("currency")}
               />
             </Group>

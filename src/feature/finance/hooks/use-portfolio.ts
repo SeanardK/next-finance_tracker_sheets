@@ -6,12 +6,19 @@ import type {
 } from "../types";
 import type { MarketQuote } from "@/app/api/finance/portfolio/market-price/route";
 
-// ─── Holdings ────────────────────────────────────────────────────────────────
+//  Holdings
 
 type HoldingFormValues = Omit<
   PortfolioHolding,
-  "rowIndex" | "id" | "createdAt" | "updatedAt" | "deleted"
->;
+  | "rowIndex"
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "deleted"
+  | "currentPrice"
+  | "previousClose"
+  | "changePercent"
+> & { manualPrice?: number };
 
 async function fetchHoldings(): Promise<{ holdings: PortfolioHolding[] }> {
   const res = await fetch("/api/finance/portfolio/holdings");
@@ -94,7 +101,7 @@ export function useDeleteHolding() {
   });
 }
 
-// ─── Portfolio Transactions ───────────────────────────────────────────────────
+//  Portfolio Transactions
 
 type PortfolioTxFormValues = Omit<
   PortfolioTransaction,
@@ -197,7 +204,7 @@ export function useDeletePortfolioTransaction() {
   });
 }
 
-// ─── Market Prices ───────────────────────────────────────────────────────────
+//  Market Prices
 
 async function fetchMarketPrices(
   tickers: string[],
@@ -226,7 +233,7 @@ export function useMarketPrices(tickers: string[]) {
   });
 }
 
-// ─── Portfolio Summary ────────────────────────────────────────────────────────
+//  Portfolio Summary
 
 async function fetchPortfolioSummary(): Promise<PortfolioSummary> {
   const res = await fetch("/api/finance/portfolio/summary");
