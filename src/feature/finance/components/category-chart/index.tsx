@@ -1,15 +1,17 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
-import type { CategorySummary } from "../../types";
+import type { Category, CategorySummary } from "../../types";
 
 interface Props {
   data: CategorySummary[];
+  categories?: Category[];
   height?: number;
 }
 
-export function CategoryChart({ data, height = 300 }: Props) {
+export function CategoryChart({ data, categories = [], height = 300 }: Props) {
   const top10 = data.slice(0, 10);
+  const colorMap = new Map(categories.map((c) => [c.name, c.color]));
 
   const pieOption = {
     tooltip: {
@@ -31,6 +33,9 @@ export function CategoryChart({ data, height = 300 }: Props) {
         data: top10.map((c) => ({
           value: Number(c.total.toFixed(2)),
           name: c.category,
+          ...(colorMap.get(c.category) && {
+            itemStyle: { color: colorMap.get(c.category) },
+          }),
         })),
         emphasis: {
           itemStyle: {

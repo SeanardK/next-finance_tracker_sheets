@@ -41,7 +41,6 @@ export const metadata: Metadata = {
 
 export const mantineHtmlProps = {
   suppressHydrationWarning: true,
-  "data-mantine-color-scheme": "light",
 };
 
 export default function RootLayout({
@@ -57,7 +56,7 @@ export default function RootLayout({
         {...mantineHtmlProps}
       >
         <head>
-          <ColorSchemeScript />
+          <ColorSchemeScript localStorageKey="fintrack-color-scheme" />
           <meta name="theme-color" content="#7950f2" />
         </head>
         <body className="min-h-full flex flex-col">

@@ -1,5 +1,5 @@
 const CACHE_NAME = "fintrack-v1";
-const STATIC_ASSETS = ["/", "/dashboard", "/manifest.json", "/offline.html"];
+const STATIC_ASSETS = ["/manifest.json", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -31,18 +31,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/")) {
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match(request).then(
-          (cached) =>
-            cached ||
-            fetch(request).then((res) => {
-              cache.put(request, res.clone());
-              return res;
-            }),
-        ),
-      ),
+      fetch(request)
+        .then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return res;
+        })
+        .catch(() => caches.match(request)),
     );
     return;
   }

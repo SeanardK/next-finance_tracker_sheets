@@ -212,7 +212,7 @@ function BudgetSection({
                     </Table.Td>
                   </Table.Tr>
                 ))}
-                <Table.Tr style={{ background: "#f8f9fa" }}>
+                <Table.Tr>
                   <Table.Td>
                     <Text size="sm" fw={700}>
                       Total

@@ -33,6 +33,7 @@ import { CategoryChart } from "@/feature/finance/components/category-chart";
 import { MonthlyChart } from "@/feature/finance/components/monthly-chart";
 import { useAccountBalances } from "@/feature/finance/hooks/use-accounts";
 import { useBudgets } from "@/feature/finance/hooks/use-budgets";
+import { useCategories } from "@/feature/finance/hooks/use-categories";
 import { useSummary } from "@/feature/finance/hooks/use-summary";
 import { useTransactions } from "@/feature/finance/hooks/use-transactions";
 
@@ -58,6 +59,7 @@ export default function DashboardPage() {
     useAccountBalances(month);
   const { data: budgetData, isLoading: budgetLoading } = useBudgets(month);
   const { data: txData, isLoading: txLoading } = useTransactions(200);
+  const { data: catData } = useCategories();
 
   const thisMonthStats = summary?.monthly.find((m) => m.month === month);
   const last6Months = useMemo(() => {
@@ -339,7 +341,11 @@ export default function DashboardPage() {
             {summaryLoading ? (
               <Skeleton height={220} />
             ) : (summary?.byCategory.length ?? 0) > 0 ? (
-              <CategoryChart data={summary?.byCategory ?? []} height={220} />
+              <CategoryChart
+                data={summary?.byCategory ?? []}
+                categories={catData?.categories ?? []}
+                height={220}
+              />
             ) : (
               <Text c="dimmed" ta="center" py="xl">
                 No expense categories yet
