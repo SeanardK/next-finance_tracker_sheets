@@ -9,7 +9,6 @@ export interface TickerResult {
   typeDisp: string;
 }
 
-/** Infer a Yahoo-compatible exchange code from the symbol suffix. */
 function inferExchange(symbol: string): string {
   if (symbol.endsWith(".JK")) return "JKT";
   if (symbol.endsWith(".L")) return "LSE";
@@ -26,7 +25,6 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (!q || q.length < 1) return Response.json({ results: [] });
 
-  // Sanitize: only allow safe search characters
   if (!/^[A-Za-z0-9.\-^ ]{1,40}$/.test(q))
     return Response.json({ results: [] });
 

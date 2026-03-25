@@ -294,7 +294,6 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
             onChange={(v) => {
               const at = (v ?? "stock") as PortfolioAssetType;
               form.setFieldValue("assetType", at);
-              // Reset exchange to sensible default when switching types
               if (at === "crypto") form.setFieldValue("exchange", "Binance");
               else if (at === "cash") form.setFieldValue("exchange", "Bank");
               else if (at === "real-estate")

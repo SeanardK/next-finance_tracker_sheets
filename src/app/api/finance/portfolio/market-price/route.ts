@@ -13,7 +13,6 @@ export interface MarketQuote {
 }
 
 // GET /api/finance/portfolio/market-price?tickers=BBCA.JK,AAPL
-// Prices are read from the GOOGLEFINANCE formulas stored in the holdings sheet.
 export async function GET(request: NextRequest) {
   const result = await getSpreadsheetId();
   if ("error" in result)

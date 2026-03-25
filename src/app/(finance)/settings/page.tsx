@@ -400,8 +400,7 @@ export default function SettingsPage() {
             >
               finnhub.io
             </Anchor>
-            . The free tier allows 60 price requests per minute. IDX stocks use
-            the <strong>.JK</strong> suffix (e.g. <strong>BBCA.JK</strong>).
+            . The free tier allows 60 price requests per minute.
           </Alert>
 
           <TextInput
