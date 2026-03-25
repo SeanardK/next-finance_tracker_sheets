@@ -10,12 +10,14 @@ import {
   Group,
   List,
   Paper,
+  SegmentedControl,
   Stack,
   Text,
   Textarea,
   TextInput,
   Title,
 } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
@@ -23,12 +25,15 @@ import {
   IconDownload,
   IconKey,
   IconLink,
+  IconMoon,
   IconRefresh,
+  IconSun,
   IconUpload,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 
 export default function SettingsPage() {
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [serviceAccountKey, setServiceAccountKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -144,6 +149,46 @@ export default function SettingsPage() {
         Settings
       </Title>
 
+      {/* Appearance */}
+      <Paper withBorder p="lg" radius="md" mb="lg">
+        <Stack gap="md">
+          <Text fw={600} size="lg">
+            Appearance
+          </Text>
+          <Group gap="sm">
+            <Text size="sm" c="dimmed" style={{ minWidth: 80 }}>
+              Color scheme
+            </Text>
+            <SegmentedControl
+              value={colorScheme}
+              onChange={(v) => setColorScheme(v as "light" | "dark" | "auto")}
+              data={[
+                {
+                  value: "light",
+                  label: (
+                    <Group gap={6} wrap="nowrap">
+                      <IconSun size={14} />
+                      <span>Light</span>
+                    </Group>
+                  ),
+                },
+                {
+                  value: "dark",
+                  label: (
+                    <Group gap={6} wrap="nowrap">
+                      <IconMoon size={14} />
+                      <span>Dark</span>
+                    </Group>
+                  ),
+                },
+              ]}
+            />
+          </Group>
+        </Stack>
+      </Paper>
+
+      <Divider mb="lg" />
+
       {/* Google Sheets Configuration */}
       <Paper withBorder p="lg" radius="md" mb="lg">
         <Stack gap="md">
@@ -172,7 +217,12 @@ export default function SettingsPage() {
           </Alert>
 
           {/* Setup guide */}
-          <Paper withBorder p="sm" radius="sm" bg="gray.0">
+          <Paper
+            withBorder
+            p="sm"
+            radius="sm"
+            bg={colorScheme === "dark" ? "gray.8" : "gray.0"}
+          >
             <Text size="sm" fw={500} mb="xs">
               Quick setup guide
             </Text>

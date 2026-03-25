@@ -3,6 +3,7 @@ export type TransactionType = "income" | "expense" | "transfer";
 export interface Transaction {
   rowIndex: number;
   date: string;
+  account: string;
   category: string;
   amount: number;
   currency: string;
@@ -22,6 +23,35 @@ export interface Category {
   type: TransactionType | "all";
   color: string;
   createdAt: string;
+}
+
+export type AccountType =
+  | "bank"
+  | "cash"
+  | "e-wallet"
+  | "investment"
+  | "credit";
+
+export interface Account {
+  rowIndex: number;
+  id: string;
+  name: string;
+  type: AccountType;
+  color: string;
+  createdAt: string;
+}
+
+export interface AccountBalance {
+  account: string;
+  color: string;
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+  // month-scoped
+  monthBudgeted: number;
+  monthSpent: number;
+  monthRemaining: number;
+  currency: string;
 }
 
 export interface SummaryMonth {
@@ -101,6 +131,59 @@ export const CAT_HEADERS = [
   "type",
   "color",
   "createdAt",
+];
+
+export const ACCT_COLS = {
+  id: 0,
+  name: 1,
+  type: 2,
+  color: 3,
+  createdAt: 4,
+} as const;
+
+export const ACCT_HEADERS = ["id", "name", "type", "color", "createdAt"];
+
+export interface Budget {
+  rowIndex: number;
+  id: string;
+  month: string; // YYYY-MM
+  category: string;
+  type: "income" | "expense";
+  amount: number;
+  currency: string;
+  account: string; // empty = applies to all accounts
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BudgetWithActual extends Budget {
+  actual: number;
+  remaining: number;
+  percentUsed: number;
+}
+
+export const BUDGET_COLS = {
+  id: 0,
+  month: 1,
+  category: 2,
+  type: 3,
+  amount: 4,
+  currency: 5,
+  createdAt: 6,
+  updatedAt: 7,
+  account: 8, // appended at end — empty string = all accounts
+} as const;
+
+export const BUDGET_HEADERS = [
+  "id",
+  "month",
+  "category",
+  "type",
+  "amount",
+  "currency",
+  "createdAt",
+  "updatedAt",
+  "account",
 ];
 
 export const META_HEADERS = ["key", "value"];
