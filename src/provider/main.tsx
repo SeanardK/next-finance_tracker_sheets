@@ -32,7 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultColorScheme="auto"
       >
         <ModalsProvider>
-          <Notifications position="top-right" />
+          <Notifications position="bottom-right" />
           {children}
         </ModalsProvider>
       </MantineProvider>

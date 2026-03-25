@@ -136,6 +136,13 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
             ]}
             aria-label="Transaction type"
             {...form.getInputProps("type")}
+            onChange={(v) => {
+              form.setFieldValue(
+                "type",
+                v as "income" | "expense" | "transfer",
+              );
+              form.setFieldValue("category", "");
+            }}
           />
 
           <NumberInput
@@ -156,15 +163,27 @@ export function AddTransactionModal({ opened, onClose, editingTx }: Props) {
             {...form.getInputProps("currency")}
           />
 
-          <Select
-            label="Category"
-            data={categoryOptions}
-            searchable
-            clearable
-            nothingFoundMessage="No categories — add one in Categories"
-            aria-label="Category"
-            {...form.getInputProps("category")}
-          />
+          {form.values.type === "transfer" ? (
+            <Select
+              label="To Account"
+              data={accountOptions}
+              searchable
+              clearable
+              nothingFoundMessage="No accounts — add one in Accounts"
+              aria-label="To account"
+              {...form.getInputProps("category")}
+            />
+          ) : (
+            <Select
+              label="Category"
+              data={categoryOptions}
+              searchable
+              clearable
+              nothingFoundMessage="No categories — add one in Categories"
+              aria-label="Category"
+              {...form.getInputProps("category")}
+            />
+          )}
 
           <Textarea
             label="Description"

@@ -26,19 +26,17 @@ export async function GET(request: NextRequest) {
 
     const monthBudgets = allBudgets.filter((b) => b.month === month);
 
-    // Compute actuals: key = "category|||account" (account empty = all accounts)
     const actualMap = new Map<string, number>();
     for (const tx of transactions) {
       if (
         tx.date.slice(0, 7) !== month ||
+        tx.type !== "expense" ||
         !tx.category ||
         tx.deleted === "TRUE"
       )
         continue;
-      // Accumulate into the specific-account key
       const specificKey = `${tx.category}|||${tx.account ?? ""}`;
       actualMap.set(specificKey, (actualMap.get(specificKey) ?? 0) + tx.amount);
-      // Also accumulate into the all-accounts key (empty account)
       const allKey = `${tx.category}|||`;
       actualMap.set(allKey, (actualMap.get(allKey) ?? 0) + tx.amount);
     }

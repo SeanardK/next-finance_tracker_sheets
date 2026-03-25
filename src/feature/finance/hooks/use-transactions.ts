@@ -96,6 +96,8 @@ export function useCreateTransaction() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["finance", "transactions"] });
       qc.invalidateQueries({ queryKey: ["finance", "summary"] });
+      qc.invalidateQueries({ queryKey: ["finance", "accounts", "balance"] });
+      qc.invalidateQueries({ queryKey: ["finance", "budgets"] });
     },
   });
 }
@@ -113,6 +115,8 @@ export function useUpdateTransaction() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["finance", "transactions"] });
       qc.invalidateQueries({ queryKey: ["finance", "summary"] });
+      qc.invalidateQueries({ queryKey: ["finance", "accounts", "balance"] });
+      qc.invalidateQueries({ queryKey: ["finance", "budgets"] });
     },
   });
 }
@@ -124,6 +128,8 @@ export function useDeleteTransaction() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["finance", "transactions"] });
       qc.invalidateQueries({ queryKey: ["finance", "summary"] });
+      qc.invalidateQueries({ queryKey: ["finance", "accounts", "balance"] });
+      qc.invalidateQueries({ queryKey: ["finance", "budgets"] });
     },
   });
 }

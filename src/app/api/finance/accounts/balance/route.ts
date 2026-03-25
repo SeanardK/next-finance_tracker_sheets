@@ -24,7 +24,6 @@ export async function GET(request: NextRequest) {
       readBudgets(result.spreadsheetId, result.serviceAccountKey),
     ]);
 
-    // Build per-account all-time income/expense maps
     const incomeMap = new Map<string, number>();
     const expenseMap = new Map<string, number>();
     const monthSpentMap = new Map<string, number>();
@@ -41,18 +40,22 @@ export async function GET(request: NextRequest) {
         if (tx.date.slice(0, 7) === month) {
           monthSpentMap.set(acct, (monthSpentMap.get(acct) ?? 0) + tx.amount);
         }
+      } else if (tx.type === "transfer") {
+        expenseMap.set(acct, (expenseMap.get(acct) ?? 0) + tx.amount);
+        const destAcct = tx.category || "";
+        if (destAcct) {
+          incomeMap.set(destAcct, (incomeMap.get(destAcct) ?? 0) + tx.amount);
+          if (!currencyMap.has(destAcct)) {
+            currencyMap.set(destAcct, tx.currency || "IDR");
+          }
+        }
       }
     }
 
-    // Budget allocated for this month, per account
-    // Strategy:
-    //   1. Budgets with a specific account → assigned directly to that account
-    //   2. Budgets with account="" (all accounts) → distribute proportionally by spending share
     const monthBudgets = budgets.filter(
       (b) => b.month === month && b.type === "expense",
     );
 
-    // Direct per-account budgets
     const directBudgetMap = new Map<string, number>();
     let proportionalBudgetTotal = 0;
     for (const b of monthBudgets) {
@@ -66,7 +69,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Proportional distribution of unassigned budgets by spending share
     const totalMonthSpent = Array.from(monthSpentMap.values()).reduce(
       (s, v) => s + v,
       0,
@@ -78,7 +80,6 @@ export async function GET(request: NextRequest) {
       const monthSpent = monthSpentMap.get(acct.name) ?? 0;
       const currency = currencyMap.get(acct.name) ?? "IDR";
 
-      // Direct budget + proportional share of unassigned budgets
       const direct = directBudgetMap.get(acct.name) ?? 0;
       const share = totalMonthSpent > 0 ? monthSpent / totalMonthSpent : 0;
       const proportional = Math.round(proportionalBudgetTotal * share);
@@ -98,7 +99,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Also include accounts that have transactions but aren't in the accounts list
     const knownNames = new Set(accounts.map((a) => a.name));
 
     function buildUnknownBalance(acct: string) {
