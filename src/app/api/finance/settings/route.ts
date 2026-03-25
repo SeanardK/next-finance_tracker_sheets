@@ -13,6 +13,7 @@ export async function GET() {
   return Response.json({
     spreadsheetId: (meta.spreadsheetId as string) ?? null,
     hasServiceAccountKey: !!(meta.serviceAccountKey as string),
+    hasAlphaVantageKey: !!(meta.alphaVantageKey as string),
   });
 }
 
@@ -28,9 +29,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { spreadsheetId, serviceAccountKey } = body as {
+  const { spreadsheetId, serviceAccountKey, alphaVantageKey } = body as {
     spreadsheetId?: string;
     serviceAccountKey?: string;
+    alphaVantageKey?: string;
   };
 
   if (!spreadsheetId?.trim()) {
@@ -69,6 +71,10 @@ export async function POST(request: NextRequest) {
 
   if (serviceAccountKey) {
     updates.serviceAccountKey = serviceAccountKey.trim();
+  }
+
+  if (alphaVantageKey !== undefined) {
+    updates.alphaVantageKey = alphaVantageKey.trim();
   }
 
   await clerk.users.updateUserMetadata(userId, { privateMetadata: updates });

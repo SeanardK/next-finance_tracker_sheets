@@ -5,6 +5,7 @@ import {
   IconBuildingBank,
   IconCategory,
   IconChartBar,
+  IconChartDonut,
   IconList,
   IconSettings,
   IconWallet,
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { href: "/categories", label: "Categories", icon: IconCategory },
   { href: "/accounts", label: "Accounts", icon: IconBuildingBank },
   { href: "/budgeting", label: "Budgeting", icon: IconWallet },
+  { href: "/portfolio", label: "Portfolio", icon: IconChartDonut },
   { href: "/settings", label: "Settings", icon: IconSettings },
 ];
 

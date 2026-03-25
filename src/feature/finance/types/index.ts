@@ -187,3 +187,130 @@ export const BUDGET_HEADERS = [
 ];
 
 export const META_HEADERS = ["key", "value"];
+
+// ─── Portfolio ────────────────────────────────────────────────────────────────
+
+export type PortfolioTransactionType = "buy" | "sell" | "dividend" | "split";
+
+export interface PortfolioHolding {
+  rowIndex: number;
+  id: string;
+  ticker: string;
+  name: string;
+  exchange: string; // e.g. "IDX", "NASDAQ", "NYSE"
+  lots: number; // lots held (1 lot = 100 shares on IDX; 1 lot = 1 share otherwise)
+  shares: number; // total shares (lots * lotSize OR direct)
+  avgPrice: number; // average cost basis per share
+  currency: string;
+  sector: string;
+  purchaseDate: string; // ISO date of first purchase
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted: string;
+}
+
+export interface PortfolioTransaction {
+  rowIndex: number;
+  id: string;
+  ticker: string;
+  date: string;
+  type: PortfolioTransactionType;
+  lots: number;
+  shares: number;
+  price: number; // price per share
+  fee: number;
+  currency: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted: string;
+}
+
+export interface PortfolioHoldingWithPrice extends PortfolioHolding {
+  currentPrice: number;
+  previousClose: number;
+  changePercent: number;
+  currentValue: number;
+  costBasis: number;
+  unrealizedPnl: number;
+  unrealizedPnlPct: number;
+  priceError?: boolean; // true if market price fetch failed
+}
+
+export interface PortfolioSummary {
+  totalCostBasis: number;
+  totalCurrentValue: number;
+  totalUnrealizedPnl: number;
+  totalUnrealizedPnlPct: number;
+  totalDividends: number;
+  holdings: PortfolioHoldingWithPrice[];
+  bySector: { sector: string; value: number; pct: number }[];
+  byExchange: { exchange: string; value: number; pct: number }[];
+}
+
+export const PORTFOLIO_HOLDING_COLS = {
+  id: 0,
+  ticker: 1,
+  name: 2,
+  exchange: 3,
+  lots: 4,
+  shares: 5,
+  avgPrice: 6,
+  currency: 7,
+  sector: 8,
+  purchaseDate: 9,
+  notes: 10,
+  createdAt: 11,
+  updatedAt: 12,
+  deleted: 13,
+} as const;
+
+export const PORTFOLIO_HOLDING_HEADERS = [
+  "id",
+  "ticker",
+  "name",
+  "exchange",
+  "lots",
+  "shares",
+  "avgPrice",
+  "currency",
+  "sector",
+  "purchaseDate",
+  "notes",
+  "createdAt",
+  "updatedAt",
+  "deleted",
+];
+
+export const PORTFOLIO_TX_COLS = {
+  id: 0,
+  ticker: 1,
+  date: 2,
+  type: 3,
+  lots: 4,
+  shares: 5,
+  price: 6,
+  fee: 7,
+  currency: 8,
+  notes: 9,
+  createdAt: 10,
+  updatedAt: 11,
+  deleted: 12,
+} as const;
+
+export const PORTFOLIO_TX_HEADERS = [
+  "id",
+  "ticker",
+  "date",
+  "type",
+  "lots",
+  "shares",
+  "price",
+  "fee",
+  "currency",
+  "notes",
+  "createdAt",
+  "updatedAt",
+  "deleted",
+];

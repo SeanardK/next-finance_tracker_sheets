@@ -1,7 +1,12 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
 export async function getSpreadsheetId(): Promise<
-  | { spreadsheetId: string; serviceAccountKey: string; userId: string }
+  | {
+      spreadsheetId: string;
+      serviceAccountKey: string;
+      userId: string;
+      alphaVantageKey?: string;
+    }
   | { error: string; status: number }
 > {
   const { userId } = await auth();
@@ -30,5 +35,10 @@ export async function getSpreadsheetId(): Promise<
     };
   }
 
-  return { spreadsheetId, serviceAccountKey, userId };
+  return {
+    spreadsheetId,
+    serviceAccountKey,
+    userId,
+    alphaVantageKey: meta.alphaVantageKey as string | undefined,
+  };
 }

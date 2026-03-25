@@ -36,11 +36,14 @@ export default function SettingsPage() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [serviceAccountKey, setServiceAccountKey] = useState("");
+  const [alphaVantageKey, setAlphaVantageKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingAv, setSavingAv] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [configured, setConfigured] = useState<{
     spreadsheetId: string | null;
     hasServiceAccountKey: boolean;
+    hasAlphaVantageKey: boolean;
   } | null>(null);
 
   const [importing, setImporting] = useState(false);
@@ -83,6 +86,7 @@ export default function SettingsPage() {
         hasServiceAccountKey: serviceAccountKey.trim()
           ? true
           : (prev?.hasServiceAccountKey ?? false),
+        hasAlphaVantageKey: prev?.hasAlphaVantageKey ?? false,
       }));
       setServiceAccountKey("");
       notifications.show({
@@ -94,6 +98,39 @@ export default function SettingsPage() {
       notifications.show({ color: "red", message: (err as Error).message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveAlphaVantage() {
+    if (!alphaVantageKey.trim()) {
+      notifications.show({ color: "red", message: "API key is required" });
+      return;
+    }
+    setSavingAv(true);
+    try {
+      const res = await fetch("/api/finance/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spreadsheetId: configured?.spreadsheetId ?? spreadsheetId.trim(),
+          alphaVantageKey: alphaVantageKey.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setConfigured((prev) =>
+        prev ? { ...prev, hasAlphaVantageKey: true } : prev,
+      );
+      setAlphaVantageKey("");
+      notifications.show({
+        color: "green",
+        icon: <IconCheck size={16} />,
+        message: "Alpha Vantage key saved!",
+      });
+    } catch (err) {
+      notifications.show({ color: "red", message: (err as Error).message });
+    } finally {
+      setSavingAv(false);
     }
   }
 
@@ -328,6 +365,70 @@ export default function SettingsPage() {
               </Anchor>
             </Text>
           )}
+        </Stack>
+      </Paper>
+
+      <Divider mb="lg" />
+
+      {/* Alpha Vantage */}
+      <Paper withBorder p="lg" radius="md" mb="lg">
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Text fw={600} size="lg">
+              Alpha Vantage API Key
+            </Text>
+            {configured?.hasAlphaVantageKey ? (
+              <Badge color="green" variant="light">
+                Configured
+              </Badge>
+            ) : (
+              <Badge color="orange" variant="light">
+                Required for live prices
+              </Badge>
+            )}
+          </Group>
+
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            color="blue"
+            variant="light"
+          >
+            Used to fetch live stock prices in the Portfolio tracker. Get a free
+            key at{" "}
+            <Anchor
+              href="https://www.alphavantage.co/support/#api-key"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              alphavantage.co
+            </Anchor>
+            . The free tier allows 25 price requests per day. For IDX stocks
+            enter tickers without the <strong>.JK</strong> suffix when adding
+            holdings (e.g. <strong>BBCA</strong>) — the app converts
+            automatically.
+          </Alert>
+
+          <TextInput
+            label={
+              configured?.hasAlphaVantageKey
+                ? "New API key (leave blank to keep existing)"
+                : "Alpha Vantage API key"
+            }
+            placeholder="Enter your Alpha Vantage API key"
+            leftSection={<IconKey size={16} />}
+            value={alphaVantageKey}
+            onChange={(e) => setAlphaVantageKey(e.currentTarget.value)}
+          />
+
+          <Group>
+            <Button
+              onClick={handleSaveAlphaVantage}
+              loading={savingAv}
+              leftSection={<IconCheck size={16} />}
+            >
+              Save API Key
+            </Button>
+          </Group>
         </Stack>
       </Paper>
 
