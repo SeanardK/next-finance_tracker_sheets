@@ -13,7 +13,7 @@ export async function GET() {
   return Response.json({
     spreadsheetId: (meta.spreadsheetId as string) ?? null,
     hasServiceAccountKey: !!(meta.serviceAccountKey as string),
-    hasAlphaVantageKey: !!(meta.alphaVantageKey as string),
+    hasFinnhubKey: !!(meta.finnhubKey as string),
   });
 }
 
@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { spreadsheetId, serviceAccountKey, alphaVantageKey } = body as {
+  const { spreadsheetId, serviceAccountKey, finnhubKey } = body as {
     spreadsheetId?: string;
     serviceAccountKey?: string;
-    alphaVantageKey?: string;
+    finnhubKey?: string;
   };
 
   if (!spreadsheetId?.trim()) {
@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
     updates.serviceAccountKey = serviceAccountKey.trim();
   }
 
-  if (alphaVantageKey !== undefined) {
-    updates.alphaVantageKey = alphaVantageKey.trim();
+  if (finnhubKey !== undefined) {
+    updates.finnhubKey = finnhubKey.trim();
   }
 
   await clerk.users.updateUserMetadata(userId, { privateMetadata: updates });

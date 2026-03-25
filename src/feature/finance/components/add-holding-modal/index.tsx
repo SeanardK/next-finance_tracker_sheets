@@ -11,12 +11,13 @@ import {
   Text,
   TextInput,
   Textarea,
+  Tooltip,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TickerResult } from "@/app/api/finance/portfolio/ticker-search/route";
 import { useCreateHolding, useUpdateHolding } from "../../hooks/use-portfolio";
 import type { PortfolioHolding } from "../../types";
@@ -61,43 +62,13 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
   const create = useCreateHolding();
   const update = useUpdateHolding();
 
-  // Ticker search state
   const [tickerSearch, setTickerSearch] = useState(editing?.ticker ?? "");
   const [debouncedSearch] = useDebouncedValue(tickerSearch, 350);
   const [tickerOptions, setTickerOptions] = useState<
     { value: string; label: string; meta: TickerResult }[]
   >([]);
   const [searchLoading, setSearchLoading] = useState(false);
-
-  useEffect(() => {
-    if (!debouncedSearch || debouncedSearch.length < 1) {
-      setTickerOptions([]);
-      return;
-    }
-    let cancelled = false;
-    setSearchLoading(true);
-    fetch(
-      `/api/finance/portfolio/ticker-search?q=${encodeURIComponent(debouncedSearch)}`,
-    )
-      .then((r) => r.json())
-      .then(({ results }: { results: TickerResult[] }) => {
-        if (cancelled) return;
-        setTickerOptions(
-          results.map((r) => ({
-            value: r.symbol,
-            label: `${r.symbol} — ${r.shortname}`,
-            meta: r,
-          })),
-        );
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setSearchLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearch]);
+  const [selectedLabel, setSelectedLabel] = useState(editing?.ticker ?? "");
 
   const form = useForm<FormValues>({
     initialValues: editing
@@ -124,19 +95,91 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
           notes: "",
         },
     validate: {
-      ticker: (v) => (!v.trim() ? "Ticker is required" : null),
+      ticker: () => null,
       avgPrice: (v) => (v <= 0 ? "Average price must be positive" : null),
       lots: (v) => (v < 0 ? "Lots cannot be negative" : null),
     },
   });
+
+  const fillFromMetaRef = useRef<
+    ((val: string, meta: TickerResult) => void) | null
+  >(null);
+  fillFromMetaRef.current = (val: string, meta: TickerResult) => {
+    form.setFieldValue("ticker", val);
+    setTickerSearch(val);
+    form.setFieldValue("name", meta.longname || meta.shortname);
+    const ex = meta.exchange;
+    const isIDX = ex === "JKT" || val.endsWith(".JK");
+    const detectedExchange = isIDX
+      ? "IDX"
+      : ex === "NMS" || ex === "NGM" || ex === "NCM"
+        ? "NASDAQ"
+        : ex === "NYQ"
+          ? "NYSE"
+          : ex === "SES"
+            ? "SGX"
+            : ex === "HKG"
+              ? "HKEX"
+              : ex === "LSE"
+                ? "LSE"
+                : form.values.exchange;
+    form.setFieldValue("exchange", detectedExchange);
+    form.setFieldValue(
+      "currency",
+      isIDX
+        ? "IDR"
+        : detectedExchange === "SGX"
+          ? "SGD"
+          : detectedExchange === "HKEX"
+            ? "HKD"
+            : detectedExchange === "LSE"
+              ? "GBP"
+              : "USD",
+    );
+  };
+
+  useEffect(() => {
+    if (!debouncedSearch || debouncedSearch.length < 1) {
+      setTickerOptions([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    fetch(
+      `/api/finance/portfolio/ticker-search?q=${encodeURIComponent(debouncedSearch)}`,
+    )
+      .then((r) => r.json())
+      .then(({ results }: { results: TickerResult[] }) => {
+        if (cancelled) return;
+        const options = results.map((r) => ({
+          value: r.symbol,
+          label: `${r.symbol} — ${r.shortname}`,
+          meta: r,
+        }));
+        setTickerOptions(options);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSearchLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch]);
 
   function calcShares(lots: number, exchange: string): number {
     return exchange === "IDX" ? lots * IDX_LOT_SIZE : lots;
   }
 
   async function handleSubmit(values: FormValues) {
+    // Accept either a dropdown-selected ticker or whatever the user typed
+    const ticker = values.ticker.trim() || tickerSearch.trim().toUpperCase();
+    if (!ticker) {
+      form.setFieldError("ticker", "Ticker is required");
+      return;
+    }
     const shares = calcShares(values.lots, values.exchange);
-    const payload = { ...values, shares };
+    const payload = { ...values, ticker, shares };
     try {
       if (editing) {
         await update.mutateAsync({ rowId: editing.rowIndex, data: payload });
@@ -170,60 +213,32 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
             searchable
             data={[
               ...tickerOptions,
-              // Keep the committed value selectable even if options list changed
               ...(form.values.ticker &&
               !tickerOptions.some((o) => o.value === form.values.ticker)
-                ? [{ value: form.values.ticker, label: form.values.ticker }]
+                ? [
+                    {
+                      value: form.values.ticker,
+                      label: selectedLabel || form.values.ticker,
+                    },
+                  ]
                 : []),
             ]}
             value={form.values.ticker || null}
             searchValue={tickerSearch}
             onSearchChange={(val) => {
+              if (!val && form.values.ticker) {
+                setTickerSearch(form.values.ticker);
+                return;
+              }
               setTickerSearch(val);
-              // Allow typing a ticker directly without picking from the dropdown
-              form.setFieldValue("ticker", val.toUpperCase());
             }}
             onChange={(val) => {
               if (!val) return;
+              const match = tickerOptions.find((o) => o.value === val);
+              setSelectedLabel(match ? match.label : val);
               form.setFieldValue("ticker", val);
               setTickerSearch(val);
-              const match = tickerOptions.find((o) => o.value === val);
-              if (match) {
-                if (!form.values.name)
-                  form.setFieldValue(
-                    "name",
-                    match.meta.longname || match.meta.shortname,
-                  );
-                // Auto-detect exchange
-                const ex = match.meta.exchange;
-                const isIDX = ex === "JKT" || val.endsWith(".JK");
-                const detectedExchange = isIDX
-                  ? "IDX"
-                  : ex === "NMS" || ex === "NGM" || ex === "NCM"
-                    ? "NASDAQ"
-                    : ex === "NYQ"
-                      ? "NYSE"
-                      : ex === "SES"
-                        ? "SGX"
-                        : ex === "HKG"
-                          ? "HKEX"
-                          : ex === "LSE"
-                            ? "LSE"
-                            : form.values.exchange;
-                form.setFieldValue("exchange", detectedExchange);
-                form.setFieldValue(
-                  "currency",
-                  isIDX
-                    ? "IDR"
-                    : detectedExchange === "SGX"
-                      ? "SGD"
-                      : detectedExchange === "HKEX"
-                        ? "HKD"
-                        : detectedExchange === "LSE"
-                          ? "GBP"
-                          : "USD",
-                );
-              }
+              if (match) fillFromMetaRef.current?.(match.value, match.meta);
             }}
             error={form.errors.ticker}
             nothingFoundMessage={
@@ -262,15 +277,39 @@ export function AddHoldingModal({ opened, onClose, editing }: Props) {
           <Group grow>
             <NumberInput
               label={
-                form.values.exchange === "IDX"
-                  ? "Lots (1 lot = 100 shares)"
-                  : "Lots / Shares"
+                <Tooltip
+                  label={
+                    form.values.exchange === "IDX"
+                      ? "Number of lots. On IDX, 1 lot = 100 shares. For other exchanges this equals the number of shares directly."
+                      : "Number of shares to record for this holding."
+                  }
+                  withArrow
+                  multiline
+                  maw={220}
+                >
+                  <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                    {form.values.exchange === "IDX"
+                      ? "Lots (1 lot = 100 shares)"
+                      : "Lots / Shares"}
+                  </span>
+                </Tooltip>
               }
               min={0}
               {...form.getInputProps("lots")}
             />
             <NumberInput
-              label="Avg. Price / Share"
+              label={
+                <Tooltip
+                  label="Weighted average cost per share across all your buy transactions for this holding."
+                  withArrow
+                  multiline
+                  maw={220}
+                >
+                  <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                    Avg. Price / Share
+                  </span>
+                </Tooltip>
+              }
               min={0}
               thousandSeparator=","
               required

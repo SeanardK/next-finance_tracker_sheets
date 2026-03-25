@@ -35,43 +35,35 @@ export async function GET() {
       return Response.json(empty);
     }
 
-    // Fetch market prices via Alpha Vantage
+    // Fetch market prices via Finnhub
     const tickers = [...new Set(holdings.map((h) => h.ticker))];
     const validTickers = tickers.filter((t) => /^[A-Z0-9.\-^]{1,20}$/.test(t));
-    const apiKey = result.alphaVantageKey;
+    const apiKey = result.finnhubKey;
 
     const priceMap: Map<string, MarketQuote> = new Map();
     if (validTickers.length > 0 && apiKey) {
       const priceResults = await Promise.allSettled(
         validTickers.map(async (ticker) => {
-          // Alpha Vantage uses .JKT for Jakarta; Yahoo uses .JK
-          const avSymbol = ticker.endsWith(".JK")
-            ? `${ticker.slice(0, -3)}.JKT`
-            : ticker;
-          const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(avSymbol)}&apikey=${encodeURIComponent(apiKey)}`;
-          const res = await fetch(url, { next: { revalidate: 300 } });
+          const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(ticker)}&token=${encodeURIComponent(apiKey)}`;
+          const res = await fetch(url, { next: { revalidate: 60 } });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const json = (await res.json()) as {
-            "Global Quote"?: Record<string, string>;
-            Note?: string;
-            Information?: string;
+            c: number;
+            d: number;
+            dp: number;
+            h: number;
+            l: number;
+            o: number;
+            pc: number;
+            t: number;
           };
-          if (json.Note || json.Information) throw new Error("rate_limit");
-          const q = json["Global Quote"];
-          if (!q?.["05. price"]) throw new Error("No data");
-          const price = Number.parseFloat(q["05. price"]);
-          const previousClose = Number.parseFloat(
-            q["08. previous close"] ?? "0",
-          );
-          const changePct = Number.parseFloat(
-            (q["10. change percent"] ?? "0%").replace("%", ""),
-          );
+          if (!json.c && json.c !== 0) throw new Error("No data");
           return {
             ticker,
-            price,
-            previousClose,
-            changePercent: changePct,
-            currency: avSymbol.endsWith(".JKT") ? "IDR" : "USD",
+            price: json.c,
+            previousClose: json.pc,
+            changePercent: json.dp,
+            currency: ticker.endsWith(".JK") ? "IDR" : "USD",
             shortName: ticker,
             error: false,
           } satisfies MarketQuote;

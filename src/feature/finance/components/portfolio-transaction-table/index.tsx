@@ -8,6 +8,7 @@ import {
   ScrollArea,
   Table,
   Text,
+  Tooltip,
 } from "@mantine/core";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import type { PortfolioTransaction } from "../../types";
@@ -47,12 +48,80 @@ export function PortfolioTransactionTable({
           <Table.Tr>
             <Table.Th>Date</Table.Th>
             <Table.Th>Ticker</Table.Th>
-            <Table.Th>Type</Table.Th>
-            <Table.Th ta="right">Lots</Table.Th>
-            <Table.Th ta="right">Shares</Table.Th>
-            <Table.Th ta="right">Price</Table.Th>
-            <Table.Th ta="right">Fee</Table.Th>
-            <Table.Th ta="right">Total</Table.Th>
+            <Table.Th>
+              <Tooltip
+                label="Buy: purchase shares. Sell: dispose shares. Dividend: cash income per share. Stock Split: share count adjustment with no cost change."
+                withArrow
+                multiline
+                maw={240}
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Type
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Number of lots transacted (IDX: 1 lot = 100 shares). Shows — for dividend entries."
+                withArrow
+                multiline
+                maw={200}
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Lots
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Number of individual shares transacted"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Shares
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Price per share for buy/sell, or dividend amount per share for dividend transactions"
+                withArrow
+                multiline
+                maw={200}
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Price
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Brokerage or transaction fee paid"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Fee
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Total transaction value. Buy/Split: shares × price + fee. Sell: shares × price − fee. Dividend: shares × dividend per share."
+                withArrow
+                multiline
+                maw={240}
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Total
+                </span>
+              </Tooltip>
+            </Table.Th>
             <Table.Th>Notes</Table.Th>
             <Table.Th />
           </Table.Tr>

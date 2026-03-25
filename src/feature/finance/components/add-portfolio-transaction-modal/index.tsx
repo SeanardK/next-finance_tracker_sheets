@@ -8,6 +8,7 @@ import {
   Select,
   Stack,
   Textarea,
+  Tooltip,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
@@ -141,6 +142,13 @@ export function AddPortfolioTransactionModal({
                 { value: "dividend", label: "Dividend" },
                 { value: "split", label: "Stock Split" },
               ]}
+              description={
+                form.values.type === "split"
+                  ? "Stock Split: adjust share count (e.g. 2-for-1 splits each share into 2). Set price to the split ratio."
+                  : form.values.type === "dividend"
+                    ? "Dividend: record cash income received per share."
+                    : undefined
+              }
               required
               {...form.getInputProps("type")}
             />
@@ -165,7 +173,22 @@ export function AddPortfolioTransactionModal({
               />
             )}
             <NumberInput
-              label={isDividend ? "Dividend per Share" : "Price / Share"}
+              label={
+                <Tooltip
+                  label={
+                    isDividend
+                      ? "Dividend amount received per share"
+                      : "Price per share for this transaction"
+                  }
+                  withArrow
+                  multiline
+                  maw={180}
+                >
+                  <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                    {isDividend ? "Dividend per Share" : "Price / Share"}
+                  </span>
+                </Tooltip>
+              }
               min={0}
               thousandSeparator=","
               required={form.values.type !== "split"}
@@ -176,7 +199,20 @@ export function AddPortfolioTransactionModal({
           {!isDividend && (
             <Group grow>
               <NumberInput
-                label="Transaction Fee"
+                label={
+                  <Tooltip
+                    label="Brokerage or platform fee paid for this transaction. Deducted from sell proceeds, added to buy cost."
+                    withArrow
+                    multiline
+                    maw={220}
+                  >
+                    <span
+                      style={{ cursor: "help", borderBottom: "1px dashed" }}
+                    >
+                      Transaction Fee
+                    </span>
+                  </Tooltip>
+                }
                 min={0}
                 thousandSeparator=","
                 {...form.getInputProps("fee")}

@@ -13,6 +13,7 @@ import {
   Tabs,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
@@ -54,6 +55,7 @@ function StatCard({
   color,
   icon: Icon,
   sub,
+  tooltip,
 }: {
   label: string;
   value: number;
@@ -61,13 +63,32 @@ function StatCard({
   color?: string;
   sub?: string;
   icon: React.ComponentType<{ size?: number }>;
+  tooltip?: string;
 }) {
   return (
     <Paper withBorder p="md" radius="md">
       <Group justify="space-between" mb={4}>
-        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-          {label}
-        </Text>
+        <Tooltip
+          label={tooltip}
+          withArrow
+          multiline
+          maw={220}
+          disabled={!tooltip}
+        >
+          <Text
+            size="xs"
+            c="dimmed"
+            tt="uppercase"
+            fw={600}
+            style={
+              tooltip
+                ? { cursor: "help", borderBottom: "1px dashed" }
+                : undefined
+            }
+          >
+            {label}
+          </Text>
+        </Tooltip>
         <Icon size={18} />
       </Group>
       <Text size="xl" fw={700} c={color}>
@@ -248,12 +269,14 @@ export default function PortfolioPage() {
               value={summary?.totalCurrentValue ?? 0}
               currency={defaultCurrency}
               icon={IconWallet}
+              tooltip="Total current market value of all your holdings (shares × current price)"
             />
             <StatCard
               label="Total Invested"
               value={summary?.totalCostBasis ?? 0}
               currency={defaultCurrency}
               icon={IconChartDonut}
+              tooltip="Total amount invested across all holdings (shares × average purchase price)"
             />
             <StatCard
               label="Unrealized P&L"
@@ -266,12 +289,14 @@ export default function PortfolioPage() {
                   ? `${summary.totalUnrealizedPnlPct >= 0 ? "+" : ""}${summary.totalUnrealizedPnlPct.toFixed(2)}%`
                   : undefined
               }
+              tooltip="Unrealized Profit & Loss — gain or loss on positions you still hold and have not sold. = Portfolio Value − Total Invested"
             />
             <StatCard
               label="Total Dividends"
               value={summary?.totalDividends ?? 0}
               currency={defaultCurrency}
               icon={IconTrendingUp}
+              tooltip="Cumulative dividend income received from all holdings"
             />
           </SimpleGrid>
         )}

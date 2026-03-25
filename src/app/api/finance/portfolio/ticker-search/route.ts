@@ -1,5 +1,5 @@
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 
 export interface TickerResult {
   symbol: string;
@@ -7,6 +7,15 @@ export interface TickerResult {
   longname: string;
   exchange: string;
   typeDisp: string;
+}
+
+/** Infer a Yahoo-compatible exchange code from the symbol suffix. */
+function inferExchange(symbol: string): string {
+  if (symbol.endsWith(".JK")) return "JKT";
+  if (symbol.endsWith(".L")) return "LSE";
+  if (symbol.endsWith(".HK")) return "HKG";
+  if (symbol.endsWith(".SI")) return "SES";
+  return "";
 }
 
 // GET /api/finance/portfolio/ticker-search?q=bbca
@@ -21,37 +30,47 @@ export async function GET(request: NextRequest) {
   if (!/^[A-Za-z0-9.\-^ ]{1,40}$/.test(q))
     return Response.json({ results: [] });
 
-  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=10&newsCount=0&listsCount=0`;
+  const clerk = await clerkClient();
+  const user = await clerk.users.getUser(userId);
+  const meta = user.privateMetadata as Record<string, unknown>;
+  const apiKey = meta.finnhubKey as string | undefined;
+
+  if (!apiKey) {
+    return Response.json(
+      { results: [], error: "Finnhub API key not configured" },
+      { status: 400 },
+    );
+  }
+
+  const url = `https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}&token=${encodeURIComponent(apiKey)}`;
 
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      next: { revalidate: 60 },
-    });
-
-    if (!res.ok) {
-      return Response.json({ results: [] });
-    }
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    if (!res.ok) return Response.json({ results: [] });
 
     const json = (await res.json()) as {
-      quotes?: {
-        symbol?: string;
-        shortname?: string;
-        longname?: string;
-        exchange?: string;
-        typeDisp?: string;
+      count: number;
+      result: {
+        description: string;
+        displaySymbol: string;
+        symbol: string;
+        type: string;
       }[];
     };
 
-    const results: TickerResult[] = (json.quotes ?? [])
-      .filter((q) => q.symbol && q.typeDisp !== "Future")
-      .map((q) => ({
-        symbol: q.symbol ?? "",
-        shortname: q.shortname ?? q.longname ?? q.symbol ?? "",
-        longname: q.longname ?? q.shortname ?? "",
-        exchange: q.exchange ?? "",
-        typeDisp: q.typeDisp ?? "",
-      }));
+    const results: TickerResult[] = (json.result ?? [])
+      .filter((r) => r.symbol)
+      .slice(0, 10)
+      .map((r) => {
+        const sym = r.displaySymbol || r.symbol;
+        return {
+          symbol: sym,
+          shortname: r.description,
+          longname: r.description,
+          exchange: inferExchange(sym),
+          typeDisp: r.type,
+        };
+      });
 
     return Response.json({ results });
   } catch (err) {

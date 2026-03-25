@@ -11,62 +11,42 @@ export interface MarketQuote {
   error?: boolean;
 }
 
-/** Convert Yahoo-format ticker to Alpha Vantage format where needed. */
-function toAvSymbol(ticker: string): string {
-  // Yahoo uses .JK for Jakarta; Alpha Vantage uses .JKT
-  if (ticker.endsWith(".JK")) return `${ticker.slice(0, -3)}.JKT`;
-  return ticker;
-}
-
-async function fetchAvQuote(
-  avSymbol: string,
-  originalTicker: string,
+async function fetchFinnhubQuote(
+  symbol: string,
   apiKey: string,
 ): Promise<MarketQuote> {
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(avSymbol)}&apikey=${encodeURIComponent(apiKey)}`;
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(apiKey)}`;
   try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, { next: { revalidate: 60 } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = (await res.json()) as {
-      "Global Quote"?: Record<string, string>;
-      Note?: string;
-      Information?: string;
+      c: number;
+      d: number;
+      dp: number;
+      h: number;
+      l: number;
+      o: number;
+      pc: number;
+      t: number;
     };
-
-    // Rate-limit or API key notice
-    if (json.Note || json.Information) {
-      console.warn(
-        "[market-price] Alpha Vantage notice:",
-        json.Note ?? json.Information,
-      );
-      throw new Error("rate_limit");
-    }
-
-    const q = json["Global Quote"];
-    if (!q || !q["05. price"]) throw new Error("No data");
-
-    const price = Number.parseFloat(q["05. price"]);
-    const previousClose = Number.parseFloat(q["08. previous close"] ?? "0");
-    const changePctStr = (q["10. change percent"] ?? "0%").replace("%", "");
-    const changePercent = Number.parseFloat(changePctStr);
-
+    if (!json.c && json.c !== 0) throw new Error("No data");
     return {
-      ticker: originalTicker,
-      price,
-      previousClose,
-      changePercent,
-      currency: avSymbol.endsWith(".JKT") ? "IDR" : "USD",
-      shortName: originalTicker,
+      ticker: symbol,
+      price: json.c,
+      previousClose: json.pc,
+      changePercent: json.dp,
+      currency: symbol.endsWith(".JK") ? "IDR" : "USD",
+      shortName: symbol,
       error: false,
     };
   } catch {
     return {
-      ticker: originalTicker,
+      ticker: symbol,
       price: 0,
       previousClose: 0,
       changePercent: 0,
-      currency: "IDR",
-      shortName: originalTicker,
+      currency: symbol.endsWith(".JK") ? "IDR" : "USD",
+      shortName: symbol,
       error: true,
     };
   }
@@ -80,13 +60,12 @@ export async function GET(request: NextRequest) {
   const clerk = await clerkClient();
   const user = await clerk.users.getUser(userId);
   const meta = user.privateMetadata as Record<string, unknown>;
-  const apiKey = meta.alphaVantageKey as string | undefined;
+  const apiKey = meta.finnhubKey as string | undefined;
 
   if (!apiKey) {
     return Response.json(
       {
-        error:
-          "Alpha Vantage API key not configured. Go to Settings to add it.",
+        error: "Finnhub API key not configured. Go to Settings to add it.",
       },
       { status: 400 },
     );
@@ -114,7 +93,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const quotes = await Promise.all(
-      tickers.map((ticker) => fetchAvQuote(toAvSymbol(ticker), ticker, apiKey)),
+      tickers.map((ticker) => fetchFinnhubQuote(ticker, apiKey)),
     );
     return Response.json({ quotes });
   } catch (err) {

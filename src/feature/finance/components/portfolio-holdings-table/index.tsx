@@ -74,12 +74,50 @@ export function PortfolioHoldingsTable({
           <Table.Tr>
             <Table.Th>Ticker</Table.Th>
             <Table.Th>Name</Table.Th>
-            <Table.Th ta="right">Lots</Table.Th>
-            <Table.Th ta="right">Shares</Table.Th>
-            <Table.Th ta="right">Avg Price</Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Number of lots held (1 IDX lot = 100 shares)"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Lots
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Total number of individual shares held"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Shares
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Weighted average price paid per share across all buy transactions"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Avg Price
+                </span>
+              </Tooltip>
+            </Table.Th>
             <Table.Th ta="right">
               <Group gap={4} justify="flex-end" wrap="nowrap">
-                Current Price
+                <Tooltip
+                  label="Latest market price. The % shows today's price change from previous close."
+                  withArrow
+                  position="top"
+                >
+                  <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                    Current Price
+                  </span>
+                </Tooltip>
                 {onRefresh && (
                   <Tooltip label="Refresh prices">
                     <ActionIcon
@@ -94,9 +132,41 @@ export function PortfolioHoldingsTable({
                 )}
               </Group>
             </Table.Th>
-            <Table.Th ta="right">Value</Table.Th>
-            <Table.Th ta="right">Cost Basis</Table.Th>
-            <Table.Th ta="right">Unrealized P&amp;L</Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Current market value: shares × current price"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Value
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Total amount invested: shares × average price paid"
+                withArrow
+                position="top"
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Cost Basis
+                </span>
+              </Tooltip>
+            </Table.Th>
+            <Table.Th ta="right">
+              <Tooltip
+                label="Unrealized Profit & Loss — the gain or loss on open positions that have not been sold yet. = Current Value − Cost Basis"
+                withArrow
+                position="top"
+                multiline
+                maw={240}
+              >
+                <span style={{ cursor: "help", borderBottom: "1px dashed" }}>
+                  Unrealized P&amp;L
+                </span>
+              </Tooltip>
+            </Table.Th>
             <Table.Th>Sector</Table.Th>
             <Table.Th>Notes</Table.Th>
             <Table.Th />

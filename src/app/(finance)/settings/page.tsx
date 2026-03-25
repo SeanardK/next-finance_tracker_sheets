@@ -36,14 +36,14 @@ export default function SettingsPage() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [serviceAccountKey, setServiceAccountKey] = useState("");
-  const [alphaVantageKey, setAlphaVantageKey] = useState("");
+  const [finnhubKey, setFinnhubKey] = useState("");
   const [saving, setSaving] = useState(false);
-  const [savingAv, setSavingAv] = useState(false);
+  const [savingFh, setSavingFh] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [configured, setConfigured] = useState<{
     spreadsheetId: string | null;
     hasServiceAccountKey: boolean;
-    hasAlphaVantageKey: boolean;
+    hasFinnhubKey: boolean;
   } | null>(null);
 
   const [importing, setImporting] = useState(false);
@@ -86,7 +86,7 @@ export default function SettingsPage() {
         hasServiceAccountKey: serviceAccountKey.trim()
           ? true
           : (prev?.hasServiceAccountKey ?? false),
-        hasAlphaVantageKey: prev?.hasAlphaVantageKey ?? false,
+        hasFinnhubKey: prev?.hasFinnhubKey ?? false,
       }));
       setServiceAccountKey("");
       notifications.show({
@@ -101,36 +101,34 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleSaveAlphaVantage() {
-    if (!alphaVantageKey.trim()) {
+  async function handleSaveFinnhub() {
+    if (!finnhubKey.trim()) {
       notifications.show({ color: "red", message: "API key is required" });
       return;
     }
-    setSavingAv(true);
+    setSavingFh(true);
     try {
       const res = await fetch("/api/finance/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           spreadsheetId: configured?.spreadsheetId ?? spreadsheetId.trim(),
-          alphaVantageKey: alphaVantageKey.trim(),
+          finnhubKey: finnhubKey.trim(),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setConfigured((prev) =>
-        prev ? { ...prev, hasAlphaVantageKey: true } : prev,
-      );
-      setAlphaVantageKey("");
+      setConfigured((prev) => (prev ? { ...prev, hasFinnhubKey: true } : prev));
+      setFinnhubKey("");
       notifications.show({
         color: "green",
         icon: <IconCheck size={16} />,
-        message: "Alpha Vantage key saved!",
+        message: "Finnhub key saved!",
       });
     } catch (err) {
       notifications.show({ color: "red", message: (err as Error).message });
     } finally {
-      setSavingAv(false);
+      setSavingFh(false);
     }
   }
 
@@ -370,14 +368,14 @@ export default function SettingsPage() {
 
       <Divider mb="lg" />
 
-      {/* Alpha Vantage */}
+      {/* Finnhub */}
       <Paper withBorder p="lg" radius="md" mb="lg">
         <Stack gap="md">
           <Group justify="space-between" align="center">
             <Text fw={600} size="lg">
-              Alpha Vantage API Key
+              Finnhub API Key
             </Text>
-            {configured?.hasAlphaVantageKey ? (
+            {configured?.hasFinnhubKey ? (
               <Badge color="green" variant="light">
                 Configured
               </Badge>
@@ -396,34 +394,32 @@ export default function SettingsPage() {
             Used to fetch live stock prices in the Portfolio tracker. Get a free
             key at{" "}
             <Anchor
-              href="https://www.alphavantage.co/support/#api-key"
+              href="https://finnhub.io/"
               target="_blank"
               rel="noopener noreferrer"
             >
-              alphavantage.co
+              finnhub.io
             </Anchor>
-            . The free tier allows 25 price requests per day. For IDX stocks
-            enter tickers without the <strong>.JK</strong> suffix when adding
-            holdings (e.g. <strong>BBCA</strong>) — the app converts
-            automatically.
+            . The free tier allows 60 price requests per minute. IDX stocks use
+            the <strong>.JK</strong> suffix (e.g. <strong>BBCA.JK</strong>).
           </Alert>
 
           <TextInput
             label={
-              configured?.hasAlphaVantageKey
+              configured?.hasFinnhubKey
                 ? "New API key (leave blank to keep existing)"
-                : "Alpha Vantage API key"
+                : "Finnhub API key"
             }
-            placeholder="Enter your Alpha Vantage API key"
+            placeholder="Enter your Finnhub API key"
             leftSection={<IconKey size={16} />}
-            value={alphaVantageKey}
-            onChange={(e) => setAlphaVantageKey(e.currentTarget.value)}
+            value={finnhubKey}
+            onChange={(e) => setFinnhubKey(e.currentTarget.value)}
           />
 
           <Group>
             <Button
-              onClick={handleSaveAlphaVantage}
-              loading={savingAv}
+              onClick={handleSaveFinnhub}
+              loading={savingFh}
               leftSection={<IconCheck size={16} />}
             >
               Save API Key

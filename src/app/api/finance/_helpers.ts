@@ -5,7 +5,7 @@ export async function getSpreadsheetId(): Promise<
       spreadsheetId: string;
       serviceAccountKey: string;
       userId: string;
-      alphaVantageKey?: string;
+      finnhubKey?: string;
     }
   | { error: string; status: number }
 > {
@@ -39,6 +39,6 @@ export async function getSpreadsheetId(): Promise<
     spreadsheetId,
     serviceAccountKey,
     userId,
-    alphaVantageKey: meta.alphaVantageKey as string | undefined,
+    finnhubKey: meta.finnhubKey as string | undefined,
   };
 }
