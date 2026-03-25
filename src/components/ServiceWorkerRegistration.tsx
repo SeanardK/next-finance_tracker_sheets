@@ -25,10 +25,6 @@ export function ServiceWorkerRegistration() {
         });
       })
       .catch((err) => console.error("[SW] registration failed:", err));
-
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
   }, []);
 
   return null;

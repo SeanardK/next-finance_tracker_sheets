@@ -1,11 +1,13 @@
 "use client";
 import { SignOutButton, useUser } from "@clerk/nextjs";
 import { Button, Menu, Text, Tooltip } from "@mantine/core";
-import { IconLogout, IconUser } from "@tabler/icons-react";
+import { IconDownload, IconLogout, IconUser } from "@tabler/icons-react";
 import Link from "next/link";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 export function UserMenu() {
   const { user, isSignedIn } = useUser();
+  const { canInstall, install } = usePwaInstall();
 
   if (!isSignedIn)
     return (
@@ -39,6 +41,17 @@ export function UserMenu() {
             </Text>
           </Menu.Item>
         </Tooltip>
+        {canInstall && (
+          <>
+            <Menu.Item
+              leftSection={<IconDownload size={16} />}
+              onClick={install}
+            >
+              Install App
+            </Menu.Item>
+            <Menu.Divider />
+          </>
+        )}
         <Menu.Divider />
         <Menu.Item color="red" leftSection={<IconLogout size={16} />}>
           <SignOutButton>Logout</SignOutButton>
